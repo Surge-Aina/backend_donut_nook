@@ -6,6 +6,7 @@ const validatePassword = (password) =>
   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/.test(password);
 
 exports.signup = async (req, res) => {
+  console.log('🔐 Signup request received:', { name, email: email ? '***' : 'missing' });
   const { name, email, password } = req.body;
   if (!validatePassword(password)) {
     return res.status(400).json({ error: 'Weak password: min 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 symbol.' });
@@ -33,6 +34,7 @@ exports.signup = async (req, res) => {
 };
 
 exports.login = async (req, res) => {
+  console.log('🔐 Login request received:', { email: email ? '***' : 'missing' });
   const { email, password } = req.body;
 
   try {
