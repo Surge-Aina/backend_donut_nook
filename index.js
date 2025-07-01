@@ -1,20 +1,21 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const connectDB = require('./utils/db');
 const testRoute = require('./routes/testRoute');
+const userRoutes = require('./routes/users'); // ✅ add this line
+
 
 const app = express();
 
-app.use(cors({
-  origin: process.env.CLIENT_URL,
-  credentials: true
-}));
+connectDB();
+app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
 app.use(express.json());
 
-// Test route for connection check
 app.use('/test', testRoute);
 
-// Optional default route
+app.use('/users', userRoutes); // ✅ mount route prefix
+
 app.get('/', (req, res) => {
   res.send('🍩 Donut Nook Backend is Alive!');
 });
