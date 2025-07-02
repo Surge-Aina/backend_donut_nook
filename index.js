@@ -4,7 +4,11 @@ const cors = require('cors');
 const connectDB = require('./utils/db');
 const testRoute = require('./routes/testRoute');
 const userRoutes = require('./routes/users'); // ✅ add this line
+
 const customerRoutes = require('./routes/customers');
+
+const menuRoutes = require('./routes/menu');
+
 
 
 const app = express();
@@ -17,6 +21,12 @@ app.use('/test', testRoute);
 
 app.use('/users', userRoutes); // ✅ mount route prefix
 app.use('/customers', customerRoutes);
+
+app.use('/menu', menuRoutes);
+
+// Add store info routes
+const storeInfoRoutes = require('./routes/storeInfoRoutes');
+app.use('/api/store-info', storeInfoRoutes);
 
 app.get('/', (req, res) => {
   res.send('🍩 Donut Nook Backend is Alive!');
