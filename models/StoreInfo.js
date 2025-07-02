@@ -26,8 +26,8 @@ const storeInfoSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now }
 });
 
-// Export the main StoreInfo model
-module.exports = mongoose.model('StoreInfo', storeInfoSchema);
+// Export the main StoreInfo model using the reuse pattern to avoid OverwriteModelError
+module.exports = mongoose.models.StoreInfo || mongoose.model('StoreInfo', storeInfoSchema);
 
 // The following schema is kept for reference, but NOT exported as a model
 const StoreInfoSchema = new mongoose.Schema({
