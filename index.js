@@ -7,6 +7,7 @@ const userRoutes = require('./routes/users'); // ✅ add this line
 const storeRoutes = require('./routes/storeRoutes');
 const aboutRoutes = require('./routes/aboutRoutes');
 const menuRoutes = require('./routes/menu');
+const holidayRoutes = require('./routes/holidayRoutes');
 
 
 const app = express();
@@ -22,7 +23,7 @@ app.use('/users', userRoutes); // ✅ mount route prefix
 app.use('/api/store', storeRoutes);
 app.use('/api/about', aboutRoutes);
 app.use('/menu', menuRoutes);
-
+app.use('/api/holidays', holidayRoutes);
 // Add store info routes
 const storeInfoRoutes = require('./routes/storeInfoRoutes');
 app.use('/api/store-info', storeInfoRoutes);
