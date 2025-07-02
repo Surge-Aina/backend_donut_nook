@@ -63,7 +63,8 @@ const StoreInfoSchema = new mongoose.Schema({
       facebook: { type: String, trim: true },
       instagram: { type: String, trim: true },
       twitter: { type: String, trim: true }
-    }
+    },
+    default: {}
   },
   // Reference to StoreTiming collection
   timings: [{

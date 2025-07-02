@@ -1,5 +1,39 @@
+const mongoose = require('mongoose');
 const StoreInfo = require('../models/StoreInfo');
 const StoreTiming = require('../models/StoreTiming');
+
+// Helper function to get or create store info
+const getOrCreateStoreInfo = async () => {
+  let storeInfo = await StoreInfo.findOne({});
+  if (!storeInfo) {
+    storeInfo = new StoreInfo({
+      storeName: 'The Donut Nook',
+      address: {},
+      contact: {},
+      isOpen: true,
+      holidayBanners: []
+    });
+  }
+  return storeInfo;
+};
+
+// Helper function for error response
+const handleError = (res, error, message, status = 500) => {
+  console.error(message, error);
+  res.status(status).json({ 
+    message,
+    error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error' 
+  });
+};
+
+// Helper function to convert date string to Date object
+const parseDate = (dateStr) => {
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) {
+    throw new Error('Invalid date format');
+  }
+  return date;
+};
 
 // Helper function to check if current time is within a time range
 const isWithinTimeRange = (currentTime, openTime, closeTime) => {
@@ -12,6 +46,13 @@ const isWithinTimeRange = (currentTime, openTime, closeTime) => {
   const openInMinutes = openHour * 60 + openMinute;
   const closeInMinutes = closeHour * 60 + closeMinute;
   
+  // Handle overnight hours (e.g., 22:00 to 04:00)
+  if (closeInMinutes < openInMinutes) {
+    // If current time is after opening time (overnight) or before closing time (next day)
+    return currentInMinutes >= openInMinutes || currentInMinutes <= closeInMinutes;
+  }
+  
+  // Normal case (not overnight)
   return currentInMinutes >= openInMinutes && currentInMinutes <= closeInMinutes;
 };
 
@@ -34,7 +75,7 @@ const getStoreInfo = async (req, res) => {
     
     res.json(storeInfo);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching store information' });
+    handleError(res, error, 'Error fetching store information');
   }
 };
 
@@ -42,27 +83,26 @@ const getStoreInfo = async (req, res) => {
 const updateStoreInfo = async (req, res) => {
   try {
     const { storeName, address, contact, isOpen } = req.body;
+    const storeInfo = await getOrCreateStoreInfo();
     
-    let storeInfo = await StoreInfo.findOne({});
-    
-    if (!storeInfo) {
-      storeInfo = new StoreInfo({
-        storeName: storeName || 'The Donut Nook',
-        address: address || {},
-        contact: contact || {},
-        isOpen: isOpen !== undefined ? isOpen : true
-      });
-    } else {
-      if (storeName !== undefined) storeInfo.storeName = storeName;
-      if (address) storeInfo.address = { ...storeInfo.address, ...address };
-      if (contact) storeInfo.contact = { ...storeInfo.contact, ...contact };
-      if (isOpen !== undefined) storeInfo.isOpen = isOpen;
+    if (storeName !== undefined) storeInfo.storeName = storeName;
+    if (address) storeInfo.address = { ...storeInfo.address, ...address };
+    if (contact) {
+      // Only update the provided contact fields
+      if (contact.phone !== undefined) storeInfo.contact.phone = contact.phone;
+      if (contact.email !== undefined) storeInfo.contact.email = contact.email;
+      if (contact.socialMedia) {
+        if (contact.socialMedia.facebook !== undefined) storeInfo.contact.socialMedia.facebook = contact.socialMedia.facebook;
+        if (contact.socialMedia.instagram !== undefined) storeInfo.contact.socialMedia.instagram = contact.socialMedia.instagram;
+        if (contact.socialMedia.twitter !== undefined) storeInfo.contact.socialMedia.twitter = contact.socialMedia.twitter;
+      }
     }
+    if (isOpen !== undefined) storeInfo.isOpen = isOpen;
     
     await storeInfo.save();
     res.json(storeInfo);
   } catch (error) {
-    res.status(500).json({ message: 'Error updating store information' });
+    handleError(res, error, 'Error updating store information');
   }
 };
 
@@ -100,7 +140,11 @@ const updateStoreTimings = async (req, res) => {
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
-    res.status(500).json({ message: 'Error updating store timings' });
+    console.error('Error updating store timings:', error);
+    res.status(500).json({ 
+      message: 'Error updating store timings',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error' 
+    });
   }
 };
 
@@ -114,30 +158,24 @@ const addHolidayBanner = async (req, res) => {
         message: 'Title, message, start date, and end date are required' 
       });
     }
-    
+
     const banner = {
       title,
       message,
       imageUrl,
-      startDate: new Date(startDate),
-      endDate: new Date(endDate),
+      startDate: parseDate(startDate),
+      endDate: parseDate(endDate),
       isActive: true,
       specialHours: specialHours || []
     };
-    
-    let storeInfo = await StoreInfo.findOne({});
-    
-    if (!storeInfo) {
-      storeInfo = new StoreInfo({ holidayBanners: [banner] });
-    } else {
-      storeInfo.holidayBanners = storeInfo.holidayBanners || [];
-      storeInfo.holidayBanners.push(banner);
-    }
+
+    const storeInfo = await getOrCreateStoreInfo();
+    storeInfo.holidayBanners.push(banner);
     
     await storeInfo.save();
     res.status(201).json(banner);
   } catch (error) {
-    res.status(500).json({ message: 'Error adding holiday banner' });
+    handleError(res, error, 'Error adding holiday banner');
   }
 };
 
@@ -163,7 +201,11 @@ const getActiveHolidayBanners = async (req, res) => {
     
     res.json(activeBanners);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching active holiday banners' });
+    console.error('Error fetching holiday banners:', error);
+    res.status(500).json({ 
+      message: 'Error fetching active holiday banners',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error' 
+    });
   }
 };
 
@@ -214,7 +256,11 @@ const getStoreStatus = async (req, res) => {
     return res.json({ isOpen, message: isOpen ? 'Open' : 'Closed' });
     
   } catch (error) {
-    res.status(500).json({ message: 'Error getting store status' });
+    console.error('Error getting store status:', error);
+    res.status(500).json({ 
+      message: 'Error getting store status',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error' 
+    });
   }
 };
 
@@ -224,5 +270,8 @@ module.exports = {
   updateStoreTimings,
   addHolidayBanner,
   getActiveHolidayBanners,
-  getStoreStatus
+  getStoreStatus,
+  isWithinTimeRange // Export the helper function for testing
 };
+
+

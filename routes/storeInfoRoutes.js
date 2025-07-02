@@ -4,7 +4,7 @@ const {
   getStoreInfo,
   updateStoreInfo,
   updateStoreTimings,
-  manageHolidayBanner,
+  addHolidayBanner,
   getActiveHolidayBanners,
   getStoreStatus
 } = require('../controllers/storeInfoController');
@@ -17,6 +17,6 @@ router.get('/status', getStoreStatus);
 // Protected routes (add authentication middleware later)
 router.put('/', updateStoreInfo);
 router.put('/timings', updateStoreTimings);
-router.post('/holiday-banners', manageHolidayBanner);
+router.post('/holiday-banners', addHolidayBanner);
 
 module.exports = router;
