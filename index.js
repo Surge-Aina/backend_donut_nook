@@ -19,6 +19,10 @@ app.use('/users', userRoutes); // ✅ mount route prefix
 
 app.use('/menu', menuRoutes);
 
+// Add store info routes
+const storeInfoRoutes = require('./routes/storeInfoRoutes');
+app.use('/api/store-info', storeInfoRoutes);
+
 app.get('/', (req, res) => {
   res.send('🍩 Donut Nook Backend is Alive!');
 });
