@@ -6,6 +6,7 @@ const testRoute = require('./routes/testRoute');
 const userRoutes = require('./routes/users'); // ✅ add this line
 const storeRoutes = require('./routes/storeRoutes');
 const aboutRoutes = require('./routes/aboutRoutes');
+const menuRoutes = require('./routes/menu');
 
 
 const app = express();
@@ -20,6 +21,11 @@ app.use('/users', userRoutes); // ✅ mount route prefix
 
 app.use('/api/store', storeRoutes);
 app.use('/api/about', aboutRoutes);
+app.use('/menu', menuRoutes);
+
+// Add store info routes
+const storeInfoRoutes = require('./routes/storeInfoRoutes');
+app.use('/api/store-info', storeInfoRoutes);
 
 app.get('/', (req, res) => {
   res.send('🍩 Donut Nook Backend is Alive!');
