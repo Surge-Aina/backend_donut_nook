@@ -5,6 +5,7 @@ const connectDB = require('./utils/db');
 const testRoute = require('./routes/testRoute');
 const userRoutes = require('./routes/users');
 const storeRoutes = require('./routes/storeRoutes');
+const holidayRoutes = require('./routes/holidayRoutes');
 const aboutRoutes = require('./routes/aboutRoutes');
 const menuRoutes = require('./routes/menu');
 const storeInfoRoutes = require('./routes/storeInfoRoutes');
