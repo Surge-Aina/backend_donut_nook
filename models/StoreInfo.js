@@ -26,6 +26,10 @@ const storeInfoSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now }
 });
 
+// Export the main StoreInfo model
+module.exports = mongoose.model('StoreInfo', storeInfoSchema);
+
+// The following schema is kept for reference, but NOT exported as a model
 const StoreInfoSchema = new mongoose.Schema({
   storeName: {
     type: String,
@@ -104,4 +108,4 @@ StoreInfoSchema.pre('save', function(next) {
   next();
 });
 
-module.exports = mongoose.model('StoreInfo', StoreInfoSchema);
+// Do NOT export StoreInfoSchema as a model again to avoid overwrite errors
