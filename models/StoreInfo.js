@@ -1,17 +1,60 @@
 const mongoose = require('mongoose');
 
+// Address Schema
+const AddressSchema = new mongoose.Schema({
+  street: { 
+    type: String, 
+    required: [true, 'Street address is required'],
+    trim: true 
+  },
+  city: { 
+    type: String, 
+    required: [true, 'City is required'],
+    trim: true 
+  },
+  state: { 
+    type: String, 
+    required: [true, 'State is required'],
+    trim: true,
+    maxlength: 2,
+    uppercase: true
+  },
+  zipCode: { 
+    type: String, 
+    required: [true, 'ZIP code is required'],
+    trim: true,
+    match: [/^\d{5}(-\d{4})?$/, 'Please enter a valid ZIP code']
+  },
+  country: { 
+    type: String, 
+    default: 'USA', 
+    trim: true 
+  },
+  coordinates: {
+    // For future use with maps
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point'
+    },
+    coordinates: {
+      type: [Number],
+      default: [0, 0]
+    }
+  }
+}, { _id: false });
+
 const StoreInfoSchema = new mongoose.Schema({
   storeName: {
     type: String,
     default: 'The Donut Nook',
-    trim: true
+    trim: true,
+    required: [true, 'Store name is required'],
+    maxlength: [100, 'Store name cannot be more than 100 characters']
   },
   address: {
-    street: { type: String, trim: true },
-    city: { type: String, trim: true },
-    state: { type: String, trim: true },
-    zipCode: { type: String, trim: true },
-    country: { type: String, default: 'USA', trim: true }
+    type: AddressSchema,
+    required: [true, 'Address is required']
   },
   contact: {
     phone: { type: String, trim: true },
@@ -22,19 +65,10 @@ const StoreInfoSchema = new mongoose.Schema({
       twitter: { type: String, trim: true }
     }
   },
+  // Reference to StoreTiming collection
   timings: [{
-    day: {
-      type: String,
-      required: true,
-      enum: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
-    },
-    open: { type: String, required: true },
-    close: { type: String, required: true },
-    isClosed: { type: Boolean, default: false },
-    splitHours: [{
-      open: String,
-      close: String
-    }]
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'StoreTiming'
   }],
   holidayBanners: [{
     title: { type: String, required: true },
@@ -62,20 +96,13 @@ const StoreInfoSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Set default timings when a new StoreInfo document is created
-StoreInfoSchema.pre('save', function(next) {
-  if (this.isNew && (!this.timings || this.timings.length === 0)) {
-    this.timings = [
-      { day: 'monday', open: '08:00', close: '20:00', isClosed: false },
-      { day: 'tuesday', open: '08:00', close: '20:00', isClosed: false },
-      { day: 'wednesday', open: '08:00', close: '20:00', isClosed: false },
-      { day: 'thursday', open: '08:00', close: '20:00', isClosed: false },
-      { day: 'friday', open: '08:00', close: '22:00', isClosed: false },
-      { day: 'saturday', open: '09:00', close: '22:00', isClosed: false },
-      { day: 'sunday', open: '09:00', close: '18:00', isClosed: false }
-    ];
-  }
-  next();
+// Add text index for search functionality
+StoreInfoSchema.index({ 
+  'storeName': 'text',
+  'address.street': 'text',
+  'address.city': 'text',
+  'address.state': 'text',
+  'address.zipCode': 'text'
 });
 
 module.exports = mongoose.model('StoreInfo', StoreInfoSchema);

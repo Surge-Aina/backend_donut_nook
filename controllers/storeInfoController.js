@@ -1,170 +1,148 @@
 const StoreInfo = require('../models/StoreInfo');
+const StoreTiming = require('../models/StoreTiming');
 
-// @desc    Get store information
-// @route   GET /api/store-info
-// @access  Public
-exports.getStoreInfo = async (req, res) => {
+// Helper function to check if current time is within a time range
+const isWithinTimeRange = (currentTime, openTime, closeTime) => {
+  const [openHour, openMinute] = openTime.split(':').map(Number);
+  const [closeHour, closeMinute] = closeTime.split(':').map(Number);
+  
+  const currentHour = currentTime.getHours();
+  const currentMinute = currentTime.getMinutes();
+  const currentInMinutes = currentHour * 60 + currentMinute;
+  const openInMinutes = openHour * 60 + openMinute;
+  const closeInMinutes = closeHour * 60 + closeMinute;
+  
+  return currentInMinutes >= openInMinutes && currentInMinutes <= closeInMinutes;
+};
+
+// Get store information
+const getStoreInfo = async (req, res) => {
   try {
-    let storeInfo = await StoreInfo.findOne({});
+    const storeInfo = await StoreInfo.findOne({}).populate('timings').lean();
     
-    // If no store info exists, create a default one
     if (!storeInfo) {
-      storeInfo = new StoreInfo({
-        storeName: 'The Donut Nook',
-        address: {
-          street: '123 Donut Street',
-          city: 'Donutville',
-          state: 'CA',
-          zipCode: '90210',
-          country: 'USA'
-        },
-        contact: {
-          phone: '(555) 123-4567',
-          email: 'info@thedonutnook.com',
-          socialMedia: {
-            facebook: 'thedonutnook',
-            instagram: 'thedonutnook',
-            twitter: 'thedonutnook'
-          }
-        }
-      });
-      await storeInfo.save();
+      return res.status(404).json({ message: 'Store information not found' });
+    }
+    
+    // Transform timings to object keyed by day
+    if (storeInfo.timings) {
+      storeInfo.timings = storeInfo.timings.reduce((acc, timing) => {
+        acc[timing.day] = timing;
+        return acc;
+      }, {});
     }
     
     res.json(storeInfo);
   } catch (error) {
-    console.error('Error fetching store info:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Error fetching store information' });
   }
 };
 
-// @desc    Update store information
-// @route   PUT /api/store-info
-// @access  Private/Admin
-exports.updateStoreInfo = async (req, res) => {
+// Update store information
+const updateStoreInfo = async (req, res) => {
   try {
     const { storeName, address, contact, isOpen } = req.body;
     
     let storeInfo = await StoreInfo.findOne({});
     
     if (!storeInfo) {
-      // Create new store info if it doesn't exist
       storeInfo = new StoreInfo({
-        storeName,
-        address,
-        contact,
+        storeName: storeName || 'The Donut Nook',
+        address: address || {},
+        contact: contact || {},
         isOpen: isOpen !== undefined ? isOpen : true
       });
     } else {
-      // Update existing store info
-      if (storeName) storeInfo.storeName = storeName;
+      if (storeName !== undefined) storeInfo.storeName = storeName;
       if (address) storeInfo.address = { ...storeInfo.address, ...address };
       if (contact) storeInfo.contact = { ...storeInfo.contact, ...contact };
       if (isOpen !== undefined) storeInfo.isOpen = isOpen;
-      storeInfo.lastUpdated = Date.now();
     }
     
     await storeInfo.save();
     res.json(storeInfo);
   } catch (error) {
-    console.error('Error updating store info:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Error updating store information' });
   }
 };
 
-// @desc    Update store timings
-// @route   PUT /api/store-info/timings
-// @access  Private/Admin
-exports.updateStoreTimings = async (req, res) => {
+// Update store timings
+const updateStoreTimings = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  
   try {
     const { timings } = req.body;
     
     if (!Array.isArray(timings)) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({ message: 'Timings must be an array' });
     }
     
-    let storeInfo = await StoreInfo.findOne({});
+    // Delete all existing timings
+    await StoreTiming.deleteMany({}).session(session);
     
-    if (!storeInfo) {
-      storeInfo = new StoreInfo({ timings });
-    } else {
-      storeInfo.timings = timings;
-      storeInfo.lastUpdated = Date.now();
-    }
+    // Insert new timings
+    const newTimings = await StoreTiming.insertMany(timings, { session });
     
-    await storeInfo.save();
-    res.json(storeInfo.timings);
+    // Update StoreInfo to reference the new timings
+    await StoreInfo.findOneAndUpdate(
+      {},
+      { $set: { timings: newTimings.map(t => t._id) } },
+      { upsert: true, session }
+    );
+    
+    await session.commitTransaction();
+    session.endSession();
+    
+    res.json(newTimings);
   } catch (error) {
-    console.error('Error updating store timings:', error);
-    res.status(500).json({ message: 'Server error' });
+    await session.abortTransaction();
+    session.endSession();
+    res.status(500).json({ message: 'Error updating store timings' });
   }
 };
 
-// @desc    Add or update holiday banner
-// @route   POST /api/store-info/holiday-banners
-// @access  Private/Admin
-exports.manageHolidayBanner = async (req, res) => {
+// Add holiday banner
+const addHolidayBanner = async (req, res) => {
   try {
-    const { 
-      title, 
-      message, 
-      imageUrl, 
-      isActive = true, 
-      startDate, 
-      endDate, 
-      specialHours = [] 
-    } = req.body;
+    const { title, message, imageUrl, startDate, endDate, specialHours } = req.body;
     
     if (!title || !message || !startDate || !endDate) {
-      return res.status(400).json({ message: 'Missing required fields' });
+      return res.status(400).json({ 
+        message: 'Title, message, start date, and end date are required' 
+      });
     }
     
-    let storeInfo = await StoreInfo.findOne({});
-    
-    if (!storeInfo) {
-      storeInfo = new StoreInfo({ holidayBanners: [] });
-    }
-    
-    const bannerData = {
+    const banner = {
       title,
       message,
       imageUrl,
-      isActive,
       startDate: new Date(startDate),
       endDate: new Date(endDate),
-      specialHours: specialHours.map(hour => ({
-        date: new Date(hour.date),
-        open: hour.open,
-        close: hour.close,
-        isClosed: hour.isClosed || false
-      }))
+      isActive: true,
+      specialHours: specialHours || []
     };
     
-    // Check if we're updating an existing banner
-    const bannerIndex = storeInfo.holidayBanners.findIndex(
-      b => b.title.toLowerCase() === title.toLowerCase()
-    );
+    let storeInfo = await StoreInfo.findOne({});
     
-    if (bannerIndex >= 0) {
-      storeInfo.holidayBanners[bannerIndex] = bannerData;
+    if (!storeInfo) {
+      storeInfo = new StoreInfo({ holidayBanners: [banner] });
     } else {
-      storeInfo.holidayBanners.push(bannerData);
+      storeInfo.holidayBanners = storeInfo.holidayBanners || [];
+      storeInfo.holidayBanners.push(banner);
     }
     
-    storeInfo.lastUpdated = Date.now();
     await storeInfo.save();
-    
-    res.json(storeInfo.holidayBanners);
+    res.status(201).json(banner);
   } catch (error) {
-    console.error('Error managing holiday banner:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Error adding holiday banner' });
   }
 };
 
-// @desc    Get active holiday banners
-// @route   GET /api/store-info/holiday-banners/active
-// @access  Public
-exports.getActiveHolidayBanners = async (req, res) => {
+// Get active holiday banners
+const getActiveHolidayBanners = async (req, res) => {
   try {
     const now = new Date();
     const storeInfo = await StoreInfo.findOne({
@@ -173,7 +151,7 @@ exports.getActiveHolidayBanners = async (req, res) => {
       'holidayBanners.endDate': { $gte: now }
     });
     
-    if (!storeInfo || !storeInfo.holidayBanners || storeInfo.holidayBanners.length === 0) {
+    if (!storeInfo?.holidayBanners?.length) {
       return res.json([]);
     }
     
@@ -185,76 +163,41 @@ exports.getActiveHolidayBanners = async (req, res) => {
     
     res.json(activeBanners);
   } catch (error) {
-    console.error('Error fetching active holiday banners:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Error fetching active holiday banners' });
   }
 };
 
-// @desc    Get store status (open/closed)
-// @route   GET /api/store-info/status
-// @access  Public
-exports.getStoreStatus = async (req, res) => {
+// Get store status (open/closed)
+const getStoreStatus = async (req, res) => {
   try {
+    const storeInfo = await StoreInfo.findOne({}).populate('timings');
+    if (!storeInfo) {
+      return res.status(404).json({ message: 'Store information not found' });
+    }
+    
     const now = new Date();
     const dayName = now.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-    const currentTime = now.getHours() * 100 + now.getMinutes(); // Convert to HHMM format
+    const todaysTiming = storeInfo.timings?.find(t => t.day === dayName);
     
-    const storeInfo = await StoreInfo.findOne({});
-    
-    if (!storeInfo) {
-      return res.json({ isOpen: false, message: 'Store information not available' });
-    }
-    
-    // Check if store is manually closed
-    if (!storeInfo.isOpen) {
-      return res.json({ isOpen: false, message: 'Store is currently closed' });
-    }
-    
-    // Check for special holiday hours
-    if (storeInfo.holidayBanners && storeInfo.holidayBanners.length > 0) {
-      const activeBanner = storeInfo.holidayBanners.find(banner => 
-        banner.isActive && 
-        banner.specialHours && 
-        banner.specialHours.some(hour => {
-          const hourDate = new Date(hour.date);
-          return (
-            hourDate.getDate() === now.getDate() &&
-            hourDate.getMonth() === now.getMonth() &&
-            hourDate.getFullYear() === now.getFullYear()
-          );
-        })
-      );
+    // Check for active holiday banners
+    if (storeInfo.holidayBanners?.length) {
+      const activeBanner = storeInfo.holidayBanners.find(banner => {
+        if (!banner.isActive || !banner.specialHours) return false;
+        const bannerStart = new Date(banner.startDate);
+        const bannerEnd = new Date(banner.endDate);
+        return now >= bannerStart && now <= bannerEnd;
+      });
       
-      if (activeBanner) {
-        const specialHour = activeBanner.specialHours.find(hour => {
-          const hourDate = new Date(hour.date);
-          return (
-            hourDate.getDate() === now.getDate() &&
-            hourDate.getMonth() === now.getMonth() &&
-            hourDate.getFullYear() === now.getFullYear()
-          );
-        });
+      if (activeBanner?.specialHours?.length) {
+        const specialHour = activeBanner.specialHours.find(hour => 
+          new Date(hour.date).toDateString() === now.toDateString()
+        );
         
         if (specialHour) {
-          if (specialHour.isClosed) {
-            return res.json({ 
-              isOpen: false, 
-              message: 'Closed for ' + activeBanner.title,
-              specialHours: specialHour
-            });
-          }
-          
-          const [openHour, openMinute] = specialHour.open.split(':').map(Number);
-          const [closeHour, closeMinute] = specialHour.close.split(':').map(Number);
-          const openTime = openHour * 100 + openMinute;
-          const closeTime = closeHour * 100 + closeMinute;
-          
-          const isOpen = currentTime >= openTime && currentTime <= closeTime;
-          
+          const isOpen = !specialHour.isClosed && isWithinTimeRange(now, specialHour.open, specialHour.close);
           return res.json({
             isOpen,
-            message: isOpen ? 'Open with special hours' : 'Closed for today',
-            specialHours: specialHour,
+            message: isOpen ? 'Open with special hours' : `Closed for ${activeBanner.title}`,
             holidayTitle: activeBanner.title
           });
         }
@@ -262,54 +205,24 @@ exports.getStoreStatus = async (req, res) => {
     }
     
     // Check regular hours
-    const todayTiming = storeInfo.timings.find(t => t.day.toLowerCase() === dayName);
-    
-    if (!todayTiming || todayTiming.isClosed) {
+    if (!todaysTiming || todaysTiming.isClosed) {
       return res.json({ isOpen: false, message: 'Closed for today' });
     }
     
-    const [openHour, openMinute] = todayTiming.open.split(':').map(Number);
-    const [closeHour, closeMinute] = todayTiming.close.split(':').map(Number);
-    const openTime = openHour * 100 + openMinute;
-    const closeTime = closeHour * 100 + closeMinute;
-    
-    // Check split hours if any
-    if (todayTiming.splitHours && todayTiming.splitHours.length > 0) {
-      const isInAnySplit = todayTiming.splitHours.some(split => {
-        const [splitOpenHour, splitOpenMinute] = split.open.split(':').map(Number);
-        const [splitCloseHour, splitCloseMinute] = split.close.split(':').map(Number);
-        const splitOpenTime = splitOpenHour * 100 + splitOpenMinute;
-        const splitCloseTime = splitCloseHour * 100 + splitCloseMinute;
-        return currentTime >= splitOpenTime && currentTime <= splitCloseTime;
-      });
-      
-      if (isInAnySplit) {
-        return res.json({ 
-          isOpen: true, 
-          message: 'Open',
-          nextClose: todayTiming.close
-        });
-      }
-    }
-    
-    // Check regular hours
-    const isOpen = currentTime >= openTime && currentTime <= closeTime;
-    
-    res.json({
-      isOpen,
-      message: isOpen ? 'Open' : 'Closed',
-      nextOpen: isOpen ? null : (() => {
-        // Find next open time (simplified)
-        const tomorrow = new Date(now);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const tomorrowDay = tomorrow.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-        const tomorrowTiming = storeInfo.timings.find(t => t.day.toLowerCase() === tomorrowDay);
-        return tomorrowTiming && !tomorrowTiming.isClosed ? `Opens tomorrow at ${tomorrowTiming.open}` : null;
-      })()
-    });
+    // Check if within regular hours
+    const isOpen = isWithinTimeRange(now, todaysTiming.open, todaysTiming.close);
+    return res.json({ isOpen, message: isOpen ? 'Open' : 'Closed' });
     
   } catch (error) {
-    console.error('Error getting store status:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Error getting store status' });
   }
+};
+
+module.exports = {
+  getStoreInfo,
+  updateStoreInfo,
+  updateStoreTimings,
+  addHolidayBanner,
+  getActiveHolidayBanners,
+  getStoreStatus
 };
