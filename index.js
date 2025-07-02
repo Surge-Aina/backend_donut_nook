@@ -4,6 +4,7 @@ const cors = require('cors');
 const connectDB = require('./utils/db');
 const testRoute = require('./routes/testRoute');
 const userRoutes = require('./routes/users'); // ✅ add this line
+const menuRoutes = require('./routes/menu');
 
 
 const app = express();
@@ -15,6 +16,8 @@ app.use(express.json());
 app.use('/test', testRoute);
 
 app.use('/users', userRoutes); // ✅ mount route prefix
+
+app.use('/menu', menuRoutes);
 
 // Add store info routes
 const storeInfoRoutes = require('./routes/storeInfoRoutes');
