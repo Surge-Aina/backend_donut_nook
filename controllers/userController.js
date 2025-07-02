@@ -34,8 +34,8 @@ exports.signup = async (req, res) => {
 };
 
 exports.login = async (req, res) => {
-  console.log('🔐 Login request received:', { email: email ? '***' : 'missing' });
   const { email, password } = req.body;
+  console.log('🔐 Login request received:', { email: email ? '***' : 'missing' });
 
   try {
     const user = await User.findOne({ email: email.toLowerCase() });

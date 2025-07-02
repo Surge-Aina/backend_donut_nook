@@ -15,8 +15,8 @@ app.use(express.json());
 
 app.use('/test', testRoute);
 
-app.use('/api/users', userRoutes); // ✅ mount route prefix
-app.use('/api/specials', specialsRoutes);
+app.use('/users', userRoutes); // ✅ mount route prefix
+app.use('/specials', specialsRoutes);
 
 app.get('/', (req, res) => {
   res.send('🍩 Donut Nook Backend is Alive!');
