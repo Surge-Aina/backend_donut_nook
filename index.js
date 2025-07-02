@@ -4,7 +4,11 @@ const cors = require('cors');
 const connectDB = require('./utils/db');
 const testRoute = require('./routes/testRoute');
 const userRoutes = require('./routes/users'); // ✅ add this line
+
+const customerRoutes = require('./routes/customers');
+
 const menuRoutes = require('./routes/menu');
+
 
 
 const app = express();
@@ -16,6 +20,7 @@ app.use(express.json());
 app.use('/test', testRoute);
 
 app.use('/users', userRoutes); // ✅ mount route prefix
+app.use('/customers', customerRoutes);
 
 app.use('/menu', menuRoutes);
 
