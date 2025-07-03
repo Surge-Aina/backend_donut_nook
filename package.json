@@ -3,11 +3,15 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-
     "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:api": "jest tests/api",
+    "test:unit": "jest tests/unit",
+    "test:integration": "jest tests/integration",
+    "test:verbose": "jest --verbose",
     "start": "node index.js",
     "dev": "nodemon index.js"
-
   },
   "keywords": [],
   "author": "",
