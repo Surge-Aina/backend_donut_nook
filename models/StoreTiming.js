@@ -33,7 +33,4 @@ const StoreTimingSchema = new mongoose.Schema({
   }]
 }, { timestamps: true });
 
-// Add a compound unique index on day
-StoreTimingSchema.index({ day: 1 }, { unique: true });
-
 module.exports = mongoose.model('StoreTiming', StoreTimingSchema);
