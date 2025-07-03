@@ -25,7 +25,7 @@ app.use('/api/store', storeRoutes);
 app.use('/api/about', aboutRoutes);
 app.use('/menu', menuRoutes);
 app.use('/customers', customerRoutes);
-app.use('/api/store-info', storeInfoRoutes);
+app.use('/store-info', storeInfoRoutes);
 
 app.get('/', (req, res) => {
   res.send('🍩 Donut Nook Backend is Alive!');
