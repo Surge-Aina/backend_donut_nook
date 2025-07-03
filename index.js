@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const connectDB = require('./utils/db');
+const connectDB = require('./utils/db'); // ✅ only once
 const testRoute = require('./routes/testRoute');
 const userRoutes = require('./routes/users');
 const specialsRoutes = require('./routes/specials');
@@ -26,12 +26,16 @@ app.use('/api/about', aboutRoutes);
 app.use('/menu', menuRoutes);
 app.use('/customers', customerRoutes);
 app.use('/api/store-info', storeInfoRoutes);
+app.use('/api/holidays', holidayRoutes); // ✅ Make sure this is added!
 
 app.get('/', (req, res) => {
   res.send('🍩 Donut Nook Backend is Alive!');
 });
 
-const PORT = process.env.PORT;
-app.listen(PORT, () => {
+const PORT = process.env.PORT || 5100; // fallback if PORT is undefined
+const server = app.listen(PORT, () => {
   console.log(`✅ Backend running on port ${PORT}`);
 });
+
+module.exports = { app, server }; // ✅ Export both for testing
+

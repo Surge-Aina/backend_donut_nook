@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+<<<<<<< Updated upstream
 const storeInfoSchema = new mongoose.Schema({
   location: String,
   phone: String,
@@ -73,6 +74,8 @@ const AddressSchema = new mongoose.Schema({
     }
   }
 }, { _id: false });
+=======
+>>>>>>> Stashed changes
 
 const StoreInfoSchema = new mongoose.Schema({
   storeName: {
@@ -136,4 +139,9 @@ StoreInfoSchema.index({
   'address.zipCode': 'text'
 });
 
+<<<<<<< Updated upstream
 // Do NOT export StoreInfoSchema as a model again to avoid overwrite errors
+=======
+// ✅ Export model safely (avoids OverwriteModelError)
+module.exports = mongoose.models.StoreInfo || mongoose.model('StoreInfo', StoreInfoSchema);
+>>>>>>> Stashed changes
