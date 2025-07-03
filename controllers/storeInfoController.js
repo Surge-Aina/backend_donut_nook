@@ -59,22 +59,34 @@ const isWithinTimeRange = (currentTime, openTime, closeTime) => {
 // Get store information
 const getStoreInfo = async (req, res) => {
   try {
-    const storeInfo = await StoreInfo.findOne({}).populate('timings').lean();
+    // Try to get existing store info
+    let storeInfo = await StoreInfo.findOne({}).lean();
     
+    // If no store info exists, create a default one
     if (!storeInfo) {
-      return res.status(404).json({ message: 'Store information not found' });
+      storeInfo = new StoreInfo({
+        storeName: 'The Donut Nook',
+        address: {},
+        contact: {},
+        isOpen: true,
+        holidayBanners: []
+      });
+      await storeInfo.save();
+      storeInfo = storeInfo.toObject();
     }
+    
+    // Get all store timings
+    const allTimings = await StoreTiming.find({}).lean();
     
     // Transform timings to object keyed by day
-    if (storeInfo.timings) {
-      storeInfo.timings = storeInfo.timings.reduce((acc, timing) => {
-        acc[timing.day] = timing;
-        return acc;
-      }, {});
-    }
+    storeInfo.timings = allTimings.reduce((acc, timing) => {
+      acc[timing.day] = timing;
+      return acc;
+    }, {});
     
     res.json(storeInfo);
   } catch (error) {
+    console.error('Error in getStoreInfo:', error);
     handleError(res, error, 'Error fetching store information');
   }
 };
