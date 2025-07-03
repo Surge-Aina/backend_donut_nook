@@ -84,12 +84,16 @@ exports.editItemByItemId = async (req, res) => {
             }
             newPriceHistory.push(newPrice)
         }
-        const newAvailability = req.body.availability ?? item.availability;
+        const newAvailability = req.body.available ?? item.available;
         const newCategory = req.body.category ?? item.category;
+        const newName = req.body.name ?? item.name
+        const newItemId = req.body.itemId ?? item.itemId
 
         const editedItem = await Menu.findByIdAndUpdate(
             item._id,   
             {
+                itemId: newItemId,
+                name: newName,
                 available: newAvailability, 
                 category: newCategory,
                 priceHistory: newPriceHistory,

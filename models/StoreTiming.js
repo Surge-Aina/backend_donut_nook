@@ -33,5 +33,4 @@ const StoreTimingSchema = new mongoose.Schema({
   }]
 }, { timestamps: true });
 
-
 module.exports = mongoose.model('StoreTiming', StoreTimingSchema);

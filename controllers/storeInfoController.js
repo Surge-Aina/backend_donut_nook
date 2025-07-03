@@ -286,4 +286,3 @@ module.exports = {
   isWithinTimeRange // Export the helper function for testing
 };
 
-
