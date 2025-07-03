@@ -14,7 +14,12 @@ const customerRoutes = require('./routes/customers');
 
 const app = express();
 
-connectDB();
+// Connect to database (non-blocking for Render)
+connectDB().catch(err => {
+  console.error('❌ Database connection failed:', err);
+  // Don't throw error - let server start anyway
+});
+
 app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
 app.use(express.json());
 
@@ -28,13 +33,28 @@ app.use('/customers', customerRoutes);
 app.use('/store-info', storeInfoRoutes);
 app.use('/holidays', holidayRoutes); // ✅ Make sure this is added!
 
+// Health check endpoint for Render
 app.get('/', (req, res) => {
-  res.send('🍩 Donut Nook Backend is Alive!');
+  res.status(200).json({
+    message: '🍩 Donut Nook Backend is Alive!',
+    port: PORT,
+    environment: process.env.NODE_ENV || 'development',
+    timestamp: new Date().toISOString()
+  });
 });
 
-const PORT = process.env.PORT || 5100; // fallback if PORT is undefined
-const server = app.listen(PORT, () => {
+// Additional health check for Render
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'OK', port: PORT });
+});
+
+// Port configuration for Render deployment
+const PORT = process.env.PORT || 5100;
+console.log(`🔧 Environment PORT: ${process.env.PORT}`);
+console.log(`🔧 Using PORT: ${PORT}`);
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Backend running on port ${PORT}`);
+  console.log(`🌐 Server accessible at: http://localhost:${PORT}`);
 });
 
 module.exports = { app, server }; // ✅ Export both for testing
