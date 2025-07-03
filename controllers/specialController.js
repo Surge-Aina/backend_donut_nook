@@ -30,6 +30,11 @@ const createSpecial = async (req, res) => {
   } catch (error) {
     if (error.name === 'ValidationError') {
       res.status(400).json({ message: 'Validation error', error: error.message });
+    } else if (error.code === 11000) {
+      // Duplicate key error
+      res.status(400).json({ message: 'Validation error', error: 'Duplicate specialId' });
+    } else if (error.name === 'CastError') {
+      res.status(400).json({ message: 'Validation error', error: error.message });
     } else {
       res.status(500).json({ message: 'Error creating special', error: error.message });
     }
@@ -53,6 +58,10 @@ const updateSpecial = async (req, res) => {
     res.status(200).json(updatedSpecial);
   } catch (error) {
     if (error.name === 'ValidationError') {
+      res.status(400).json({ message: 'Validation error', error: error.message });
+    } else if (error.code === 11000) {
+      res.status(400).json({ message: 'Validation error', error: 'Duplicate specialId' });
+    } else if (error.name === 'CastError') {
       res.status(400).json({ message: 'Validation error', error: error.message });
     } else {
       res.status(500).json({ message: 'Error updating special', error: error.message });

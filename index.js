@@ -30,6 +30,12 @@ app.get('/', (req, res) => {
 });
 
 const PORT = process.env.PORT;
-app.listen(PORT, () => {
-  console.log(`✅ Backend running on port ${PORT}`);
-});
+
+// Only start the server if not in test mode
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`✅ Backend running on port ${PORT}`);
+  });
+}
+
+module.exports = app;
