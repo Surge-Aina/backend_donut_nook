@@ -1,9 +1,13 @@
 const express = require('express');
 const router = express.Router();
+const { getAllItems, 
+        addMenuItem, 
+        editItemByItemId, 
+        deleteItemByItemId } = require('../controllers/menuController');
 
-// Example GET endpoint for /menu
-router.get('/', (req, res) => {
-  res.json({ message: 'Menu route is working!' });
-});
+router.get('/', getAllItems);
+router.post('/', addMenuItem);
+router.patch('/:itemId', editItemByItemId);
+router.delete('/:itemId', deleteItemByItemId);
 
-module.exports = router; 
+module.exports = router;

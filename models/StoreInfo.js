@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-
 const storeInfoSchema = new mongoose.Schema({
   location: String,
   phone: String,
@@ -30,6 +29,7 @@ const storeInfoSchema = new mongoose.Schema({
 module.exports = mongoose.models.StoreInfo || mongoose.model('StoreInfo', storeInfoSchema);
 
 // The following schema is kept for reference, but NOT exported as a model
+
 const StoreInfoSchema = new mongoose.Schema({
   storeName: {
     type: String,

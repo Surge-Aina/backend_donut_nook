@@ -10,6 +10,7 @@ const holidayRoutes = require('./routes/holidayRoutes');
 const aboutRoutes = require('./routes/aboutRoutes');
 const menuRoutes = require('./routes/menu');
 const storeInfoRoutes = require('./routes/storeInfoRoutes');
+const customerRoutes = require('./routes/customers');
 
 const app = express();
 
@@ -23,6 +24,7 @@ app.use('/specials', specialsRoutes);
 app.use('/api/store', storeRoutes);
 app.use('/api/about', aboutRoutes);
 app.use('/menu', menuRoutes);
+app.use('/customers', customerRoutes);
 app.use('/api/store-info', storeInfoRoutes);
 
 app.get('/', (req, res) => {
