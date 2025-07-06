@@ -4,7 +4,7 @@ const cors = require('cors');
 const connectDB = require('./utils/db');
 const testRoute = require('./routes/testRoute');
 const userRoutes = require('./routes/users'); // ✅ add this line
-
+const aboutRoutes = require('./routes/aboutRoute');
 
 const app = express();
 
@@ -15,6 +15,9 @@ app.use(express.json());
 app.use('/test', testRoute);
 
 app.use('/users', userRoutes); // ✅ mount route prefix
+
+app.use('/about', aboutRoutes);
+
 
 app.get('/', (req, res) => {
   res.send('🍩 Donut Nook Backend is Alive!');
