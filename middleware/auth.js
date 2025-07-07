@@ -2,17 +2,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
 
-//////////this is to bypass tokens for admin testing///////////
-// In middleware/auth.js (dev only!)
-// do not use in deployment!!!!!!!////////////
-exports.authenticate = (req, res, next) => {
-  req.user = {
-    id: '64a123456789abcdef123456',
-    role: 'admin'
-  };
-  next();
-};
-/////////////////////////////////////////////////////////////////
+
 
 
 
