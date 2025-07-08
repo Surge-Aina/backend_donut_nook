@@ -22,6 +22,14 @@ const seed = async () => {
       signedInWithGoogle: false,
       emailVerified: true,
       role: 'manager'
+    },
+    {
+      name: 'Customer User',
+      email: 'cust@test.com',
+      passwordHash: await bcrypt.hash('Cust@123', 10),
+      signedInWithGoogle: false,
+      emailVerified: true,
+      role: 'customer'
     }
   ];
 
