@@ -6,5 +6,6 @@ const aboutSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now }
 });
 
+
 module.exports = mongoose.model('About', aboutSchema, 'about');
 

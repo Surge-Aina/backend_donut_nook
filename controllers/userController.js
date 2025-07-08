@@ -7,6 +7,7 @@ const validatePassword = (password) =>
 
 exports.signup = async (req, res) => {
   const { name, email, password } = req.body;
+  console.log('🔐 Signup request received:', { name, email: email ? '***' : 'missing' });
   if (!validatePassword(password)) {
     return res.status(400).json({ error: 'Weak password: min 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 symbol.' });
   }
@@ -34,6 +35,7 @@ exports.signup = async (req, res) => {
 
 exports.login = async (req, res) => {
   const { email, password } = req.body;
+  console.log('🔐 Login request received:', { email: email ? '***' : 'missing' });
 
   try {
     const user = await User.findOne({ email: email.toLowerCase() });
