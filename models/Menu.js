@@ -8,6 +8,7 @@ const MenuSchema = new mongoose.Schema({
     imageUrl: {type: String},
     available: {type: Boolean},
 
+    isFavorite: {type: Boolean, default: false},
     priceHistory: [
         {
             price: {type: Number},

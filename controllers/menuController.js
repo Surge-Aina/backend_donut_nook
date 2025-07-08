@@ -107,3 +107,19 @@ exports.editItemByItemId = async (req, res) => {
         res.status(500).json({message: "error editing item by ID"});
     } 
 };
+
+exports.toggleFavoriteStatus = async (req, res) => { 
+    try {
+        const menuItem = await Menu.findById(req.params.id); // find it unique id for the item 
+        if (menuItem) {
+            menuItem.isFavorite = !menuItem.isFavorite;
+            const updatedMenuItem = await menuItem.save();
+            res.status(200).json(updatedMenuItem);
+        } else{
+            res.status(404).json({message: 'Menu item not found' });
+        }
+    } catch (error) {
+        console.log("error toggling favorite status", error);
+        res.status(500).json({message: "error toggling favorite status "});
+    }
+};
