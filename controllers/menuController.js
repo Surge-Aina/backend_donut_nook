@@ -1,9 +1,38 @@
 const Menu = require('../models/Menu')
+const Special = require('../models/Special')
 
 exports.getAllItems = async (req, res) => {
     try{
         const allItems = await Menu.find();
-        res.status(200).json(allItems)
+        
+        // Get active specials (current date is between startDate and endDate)
+        const now = new Date();
+        const activeSpecials = await Special.find({
+            startDate: { $lte: now },
+            endDate: { $gte: now }
+        });
+        
+        // Add active specials to each menu item
+        const itemsWithSpecials = allItems.map(item => {
+            const itemObj = item.toObject();
+            
+            // Find active special for this item
+            const activeSpecial = activeSpecials.find(special => 
+                special.itemIds.includes(Number(item.itemId))
+            );
+            
+            if (activeSpecial) {
+                itemObj.activeSpecial = {
+                    title: activeSpecial.title,
+                    message: activeSpecial.message,
+                    expiresOn: activeSpecial.endDate
+                };
+            }
+            
+            return itemObj;
+        });
+        
+        res.status(200).json(itemsWithSpecials)
     }catch(error){
         console.log("error finding all items", error)
         res.status(500).json({message:"error finding all items"}) 
@@ -18,7 +47,25 @@ exports.getItemByItemId = async (req, res) =>{
             res.status(404).json({message: "item not found"})
             return;
         }
-        res.status(200).json(item)
+        
+        // Get active specials for this item
+        const now = new Date();
+        const activeSpecial = await Special.findOne({
+            itemIds: Number(itemId),
+            startDate: { $lte: now },
+            endDate: { $gte: now }
+        });
+        
+        const itemObj = item.toObject();
+        if (activeSpecial) {
+            itemObj.activeSpecial = {
+                title: activeSpecial.title,
+                message: activeSpecial.message,
+                expiresOn: activeSpecial.endDate
+            };
+        }
+        
+        res.status(200).json(itemObj)
     }catch(error){
         console.log("error getting item by ID", error)
         res.status(500).json({message: "error getting item by ID"})

@@ -13,7 +13,23 @@ const getAllSpecials = async (req, res) => {
 // Create a new special
 const createSpecial = async (req, res) => {
   try {
-    const { specialId, title, message, itemIds, startDate, endDate, createdBy, tags, image, status } = req.body;
+    const { specialId, title, message, itemIds, startDate, endDate, createdBy } = req.body;
+    
+    // Validate createdBy field
+    if (!createdBy || createdBy === '') {
+      return res.status(400).json({ 
+        message: 'Validation error', 
+        error: 'createdBy field is required and must be a valid user ID' 
+      });
+    }
+    
+    // Validate ObjectId format
+    if (!require('mongoose').Types.ObjectId.isValid(createdBy)) {
+      return res.status(400).json({ 
+        message: 'Validation error', 
+        error: 'createdBy must be a valid ObjectId' 
+      });
+    }
     
     const newSpecial = new Special({
       specialId,
@@ -22,10 +38,7 @@ const createSpecial = async (req, res) => {
       itemIds,
       startDate,
       endDate,
-      createdBy,
-      tags: tags || [],
-      image: image || '',
-      status: status || 'active'
+      createdBy
     });
 
     const savedSpecial = await newSpecial.save();
@@ -45,7 +58,7 @@ const updateSpecial = async (req, res) => {
     const { id } = req.params;
     const updateFields = { ...req.body };
     // Only allow updating these fields
-    const allowedFields = ['title', 'message', 'itemIds', 'startDate', 'endDate', 'tags', 'image', 'status'];
+    const allowedFields = ['title', 'message', 'itemIds', 'startDate', 'endDate'];
     Object.keys(updateFields).forEach(key => {
       if (!allowedFields.includes(key)) delete updateFields[key];
     });

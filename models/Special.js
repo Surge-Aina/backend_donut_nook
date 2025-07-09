@@ -30,19 +30,6 @@ const specialSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
-  },
-  tags: {
-    type: [String],
-    default: []
-  },
-  image: {
-    type: String,
-    default: ''
-  },
-  status: {
-    type: String,
-    enum: ['active', 'inactive'],
-    default: 'active'
   }
 }, {
   timestamps: true
