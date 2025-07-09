@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { deleteStoreInfo } = require('../controllers/storeInfoController');
 const {
   getStoreInfo,
   updateStoreInfo,
@@ -18,5 +19,7 @@ router.get('/status', getStoreStatus);
 router.put('/', updateStoreInfo);
 router.put('/timings', updateStoreTimings);
 router.post('/holiday-banners', addHolidayBanner);
+
+router.delete('/:id', deleteStoreInfo);
 
 module.exports = router;

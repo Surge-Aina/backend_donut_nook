@@ -1,0 +1,5 @@
+### Get Store Info
+GET http://localhost:5100/store-info/
+
+### Delete Store Info by ID
+DELETE http://localhost:5100/store-info/686da8d2144637a8d46fbd77

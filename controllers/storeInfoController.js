@@ -276,6 +276,19 @@ const getStoreStatus = async (req, res) => {
   }
 };
 
+// Delete store info by ID
+const deleteStoreInfo = async (req, res) => {
+  try {
+    const deleted = await StoreInfo.findByIdAndDelete(req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ message: 'StoreInfo not found' });
+    }
+    res.status(200).json({ message: 'StoreInfo deleted successfully' });
+  } catch (error) {
+    handleError(res, error, 'Error deleting store information');
+  }
+};
+
 module.exports = {
   getStoreInfo,
   updateStoreInfo,
@@ -283,6 +296,7 @@ module.exports = {
   addHolidayBanner,
   getActiveHolidayBanners,
   getStoreStatus,
-  isWithinTimeRange // Export the helper function for testing
+  isWithinTimeRange,
+  deleteStoreInfo 
 };
 
