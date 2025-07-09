@@ -29,9 +29,8 @@ exports.addMenuItem = async (req, res) => {
     try{
         const newItem = new Menu({
             itemId: req.body.itemId,
-            name: req.body.name ?? 'default item',
-            price: req.body.price ?? 0.00, 
-            availability: req.body.availability ?? false,
+            name: req.body.name ?? 'default item', 
+            available: req.body.available ?? true,
             category: req.body.category ?? 'Uncategorized',
             priceHistory: [{
                 price: req.body.price ?? 0.00, 
@@ -45,7 +44,7 @@ exports.addMenuItem = async (req, res) => {
             return res.status(409).json({message: 'itemId already exists'})
         }
         const savedItem = await newItem.save();
-        res.status(201).json({message: "item added successfully", savedItem})
+        res.status(201).json(savedItem)
     } catch(error){
         console.log("error adding menu item", error)
         res.status(500).json({message: "error adding menu item"})
@@ -84,7 +83,7 @@ exports.editItemByItemId = async (req, res) => {
             }
             newPriceHistory.push(newPrice)
         }
-        const newAvailability = req.body.available ?? item.available;
+        const newAvailable = req.body.available ?? item.available;
         const newCategory = req.body.category ?? item.category;
         const newName = req.body.name ?? item.name
         const newItemId = req.body.itemId ?? item.itemId
@@ -94,7 +93,7 @@ exports.editItemByItemId = async (req, res) => {
             {
                 itemId: newItemId,
                 name: newName,
-                available: newAvailability, 
+                available: newAvailable, 
                 category: newCategory,
                 priceHistory: newPriceHistory,
 
