@@ -63,5 +63,10 @@ const requireAdminOrManager = (req, res, next) => {
   next();
 };
 
-module.exports = { authenticateToken, requireAdminOrManager }; 
+module.exports = {
+  verifyToken,
+  requireAdmin,
+  authenticateToken,
+  requireAdminOrManager
+};
 
