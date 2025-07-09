@@ -3,6 +3,9 @@ const express = require('express');
 const cors = require('cors');
 const connectDB = require('./utils/db'); // ✅ only once
 const testRoute = require('./routes/testRoute');
+
+const aboutRoutes = require('./routes/aboutRoute');
+
 const userRoutes = require('./routes/users');
 const specialsRoutes = require('./routes/specials');
 const storeRoutes = require('./routes/storeRoutes');
@@ -11,6 +14,7 @@ const aboutRoutes = require('./routes/aboutRoute');
 const menuRoutes = require('./routes/menu');
 const storeInfoRoutes = require('./routes/storeInfoRoutes');
 const customerRoutes = require('./routes/customers');
+
 
 const app = express();
 
@@ -33,7 +37,11 @@ app.use('/customers', customerRoutes);
 app.use('/store-info', storeInfoRoutes);
 app.use('/holidays', holidayRoutes); // ✅ Make sure this is added!
 
-// Health check endpoint for Render
+
+app.use('/about', aboutRoutes);
+
+
+
 app.get('/', (req, res) => {
   res.status(200).json({
     message: '🍩 Donut Nook Backend is Alive!',
