@@ -24,8 +24,8 @@ app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
 app.use(express.json());
 
 app.use('/test', testRoute);
-app.use('/api/users', userRoutes);
-app.use('/api/specials', specialsRoutes);
+app.use('/users', userRoutes);
+app.use('/specials', specialsRoutes);
 app.use('/api/store', storeRoutes);
 app.use('/api/about', aboutRoutes);
 app.use('/menu', menuRoutes);
