@@ -46,7 +46,6 @@ const verifyToken = async (req, res, next) => {
   }
 };
 
-// Define requireAdmin (from main)
 const requireAdmin = (req, res, next) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admins only' });
@@ -54,7 +53,6 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
-// Optional: Other middleware (from main)
 const authenticateToken = async (req, res, next) => {
   try {
     const authHeader = req.headers['authorization'];
