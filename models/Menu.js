@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const MenuSchema = new mongoose.Schema({
-    itemId: {type: Number, unique: true, required: true},
+    itemId: {type: String, unique: true, match: /^\d{3}$/},
     name: {type: String},
     description: {type: String},
     category: {type: String},
