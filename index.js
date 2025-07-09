@@ -7,10 +7,11 @@ const userRoutes = require('./routes/users');
 const specialsRoutes = require('./routes/specials');
 const storeRoutes = require('./routes/storeRoutes');
 const holidayRoutes = require('./routes/holidayRoutes');
-const aboutRoutes = require('./routes/aboutRoutes');
+const aboutRoutes = require('./routes/aboutRoute');
 const menuRoutes = require('./routes/menu');
 const storeInfoRoutes = require('./routes/storeInfoRoutes');
 const customerRoutes = require('./routes/customers');
+
 
 const app = express();
 
@@ -27,13 +28,14 @@ app.use('/test', testRoute);
 app.use('/users', userRoutes);
 app.use('/specials', specialsRoutes);
 app.use('/api/store', storeRoutes);
-app.use('/api/about', aboutRoutes);
+app.use('/about', aboutRoutes);
 app.use('/menu', menuRoutes);
 app.use('/customers', customerRoutes);
 app.use('/store-info', storeInfoRoutes);
 app.use('/holidays', holidayRoutes); // ✅ Make sure this is added!
 
-// Health check endpoint for Render
+
+
 app.get('/', (req, res) => {
   res.status(200).json({
     message: '🍩 Donut Nook Backend is Alive!',
