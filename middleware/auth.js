@@ -1,36 +1,26 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
 
-// Middleware to verify JWT token and add user to request
-const authenticateToken = async (req, res, next) => {
-  try {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+function requireRole(roles = []) {
+  // roles can be a string or array
+  if (typeof roles === 'string') roles = [roles];
 
-    if (!token) {
-      return res.status(401).json({ error: 'Access token required' });
+  return (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'No token provided' });
     }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id);
-    
-    if (!user) {
+    const token = authHeader.split(' ')[1];
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      if (!roles.includes(decoded.role)) {
+        return res.status(403).json({ error: 'Forbidden: insufficient role' });
+      }
+      req.user = decoded;
+      next();
+    } catch (err) {
       return res.status(401).json({ error: 'Invalid token' });
     }
+  };
+}
 
-    req.user = user;
-    next();
-  } catch (err) {
-    return res.status(403).json({ error: 'Invalid token' });
-  }
-};
-
-// Middleware to check if user is admin or manager
-const requireAdminOrManager = (req, res, next) => {
-  if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'manager')) {
-    return res.status(403).json({ error: 'Access denied. Admin or manager role required.' });
-  }
-  next();
-};
-
-module.exports = { authenticateToken, requireAdminOrManager }; 
+module.exports = { requireRole }; 

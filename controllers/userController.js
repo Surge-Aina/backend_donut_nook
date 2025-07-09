@@ -27,7 +27,7 @@ exports.signup = async (req, res) => {
     });
 
     const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET);
-    res.status(201).json({ token, role: user.role });
+    res.status(201).json({ token, role: user.role, userId: user._id });
   } catch (err) {
     res.status(500).json({ error: 'Signup failed' });
   }
@@ -50,6 +50,7 @@ exports.login = async (req, res) => {
         role: user.role,
         name: user.name,
         email: user.email,
+        userId: user._id
       });
   } catch (err) {
     res.status(500).json({ error: 'Login failed' });

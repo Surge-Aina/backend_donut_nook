@@ -13,7 +13,7 @@ const getAllSpecials = async (req, res) => {
 // Create a new special
 const createSpecial = async (req, res) => {
   try {
-    const { specialId, title, message, itemIds, startDate, endDate, createdBy } = req.body;
+    const { specialId, title, message, itemIds, startDate, endDate, createdBy, tags, image, status } = req.body;
     
     const newSpecial = new Special({
       specialId,
@@ -22,7 +22,10 @@ const createSpecial = async (req, res) => {
       itemIds,
       startDate,
       endDate,
-      createdBy
+      createdBy,
+      tags: tags || [],
+      image: image || '',
+      status: status || 'active'
     });
 
     const savedSpecial = await newSpecial.save();
@@ -40,9 +43,16 @@ const createSpecial = async (req, res) => {
 const updateSpecial = async (req, res) => {
   try {
     const { id } = req.params;
+    const updateFields = { ...req.body };
+    // Only allow updating these fields
+    const allowedFields = ['title', 'message', 'itemIds', 'startDate', 'endDate', 'tags', 'image', 'status'];
+    Object.keys(updateFields).forEach(key => {
+      if (!allowedFields.includes(key)) delete updateFields[key];
+    });
+
     const updatedSpecial = await Special.findByIdAndUpdate(
       id,
-      req.body,
+      updateFields,
       { new: true, runValidators: true }
     );
 
