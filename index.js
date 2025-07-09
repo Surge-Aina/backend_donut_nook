@@ -3,9 +3,6 @@ const express = require('express');
 const cors = require('cors');
 const connectDB = require('./utils/db'); // ✅ only once
 const testRoute = require('./routes/testRoute');
-
-const aboutRoutes = require('./routes/aboutRoute');
-
 const userRoutes = require('./routes/users');
 const specialsRoutes = require('./routes/specials');
 const storeRoutes = require('./routes/storeRoutes');
@@ -36,9 +33,6 @@ app.use('/menu', menuRoutes);
 app.use('/customers', customerRoutes);
 app.use('/store-info', storeInfoRoutes);
 app.use('/holidays', holidayRoutes); // ✅ Make sure this is added!
-
-
-app.use('/about', aboutRoutes);
 
 
 
