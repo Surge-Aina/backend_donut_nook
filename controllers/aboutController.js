@@ -27,9 +27,11 @@ exports.updateAbout = async (req, res) => {
     );
     res.json(about);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to update about content' });
+    console.error('Update About error:', err);  // Add this line
+    res.status(500).json({ error: 'Failed to update about content', details: err.message });
   }
 };
+
 
 // POST /about
 exports.createAbout = async (req, res) => {
