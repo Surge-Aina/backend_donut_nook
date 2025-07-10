@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const customerController = require('../controllers/customerController');
-const { requireRole } = require('../middleware/auth');
+const { authenticateToken, requireAdminOrManager } = require('../middleware/auth');
 
 // Create a new customer (any authenticated user)
 router.post('/', requireRole(['admin', 'manager', 'customer']), customerController.createCustomer);
