@@ -9,6 +9,9 @@ router.post('/', customerController.createCustomer);
 // Get all customers (admin and manager only)
 router.get('/', authenticateToken, requireAdminOrManager, customerController.getCustomers);
 
+// Get the currently logged-in customer's profile
+router.get('/me', authenticateToken, customerController.getMe);
+
 // Get a customer by ID
 router.get('/:id', customerController.getCustomerById);
 
@@ -20,5 +23,8 @@ router.delete('/:id', authenticateToken, requireAdminOrManager, customerControll
 
 // Update a customer by ID (admin and manager only)
 router.patch('/:id', authenticateToken, requireAdminOrManager, customerController.updateCustomer);
+
+// PATCH /customers/:id/loyalty - Update loyalty points (admin/manager only)
+router.patch('/:id/loyalty', authenticateToken, requireAdminOrManager, customerController.updateLoyaltyPoints);
 
 module.exports = router; 
