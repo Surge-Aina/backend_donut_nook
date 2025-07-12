@@ -5,6 +5,7 @@ const { app } = require('../index');
 const Customer = require('../models/Customer');
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
 
 describe('Customer API Tests', () => {
   let adminToken, managerToken, customerToken;
@@ -23,7 +24,7 @@ describe('Customer API Tests', () => {
       await User.create({
         name: 'Admin User',
         email: 'admin@test.com',
-        passwordHash: 'hashedpassword',
+        passwordHash: await bcrypt.hash('Admin@123', 10),
         role: 'admin'
       });
 
@@ -31,7 +32,7 @@ describe('Customer API Tests', () => {
       await User.create({
         name: 'Manager User',
         email: 'manager@test.com',
-        passwordHash: 'hashedpassword',
+        passwordHash: await bcrypt.hash('Manager@123', 10),
         role: 'manager'
       });
 
@@ -39,7 +40,7 @@ describe('Customer API Tests', () => {
       await User.create({
         name: 'Customer User',
         email: 'customer@test.com',
-        passwordHash: 'hashedpassword',
+        passwordHash: await bcrypt.hash('Customer@123', 10),
         role: 'customer'
       });
 
@@ -119,13 +120,23 @@ describe('Customer API Tests', () => {
     });
 
     it('should allow admin to update customer loyalty points', async () => {
+      // Admin can only set loyalty points to zero
       const res = await request(app)
         .patch(`/customers/${testCustomerId}`)
         .set('Authorization', `Bearer ${adminToken}`)
         .send({ loyaltyPoints: 25 });
 
-      expect(res.statusCode).toBe(200);
-      expect(res.body.loyaltyPoints).toBe(25);
+      expect(res.statusCode).toBe(403);
+      expect(res.body.error).toContain('Admins can only delete (set to zero) loyalty points.');
+
+      // Admin sets loyalty points to zero (allowed)
+      const resZero = await request(app)
+        .patch(`/customers/${testCustomerId}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ loyaltyPoints: 0 });
+
+      expect(resZero.statusCode).toBe(200);
+      expect(resZero.body.loyaltyPoints).toBe(0);
     });
 
     it('should allow manager to update customer loyalty points', async () => {
@@ -169,14 +180,24 @@ describe('Customer API Tests', () => {
     });
 
     it('should allow partial updates (only loyalty points)', async () => {
+      // Admin tries to set loyalty points to non-zero (should fail)
       const res = await request(app)
         .patch(`/customers/${testCustomerId}`)
         .set('Authorization', `Bearer ${adminToken}`)
         .send({ loyaltyPoints: 100 });
 
-      expect(res.statusCode).toBe(200);
-      expect(res.body.loyaltyPoints).toBe(100);
-      expect(res.body.name).toBe('Patch Test User'); // Other fields unchanged
+      expect(res.statusCode).toBe(403);
+      expect(res.body.error).toContain('Admins can only delete (set to zero) loyalty points.');
+
+      // Manager can set loyalty points to a higher value (allowed)
+      const resManager = await request(app)
+        .patch(`/customers/${testCustomerId}`)
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send({ loyaltyPoints: 100 });
+
+      expect(resManager.statusCode).toBe(200);
+      expect(resManager.body.loyaltyPoints).toBe(100);
+      expect(resManager.body.name).toBe('Patch Test User'); // Other fields unchanged
     });
   });
 
