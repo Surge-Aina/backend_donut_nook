@@ -1,6 +1,13 @@
 const Menu = require('../models/Menu')
 const Special = require('../models/Special')
 
+// auto populate the items 
+const categoryRanges = {
+    drink : {start: 100, end: 199},
+    pastry : {start: 200, end: 299},
+    merch : {start: 300, end: 399},
+    misc : {start: 400, end: 499},
+}
 exports.getAllItems = async (req, res) => {
     try{
         const allItems = await Menu.find();
@@ -73,29 +80,54 @@ exports.getItemByItemId = async (req, res) =>{
 };
 
 exports.addMenuItem = async (req, res) => {
-    try{
+    try {
+        const { name, category = 'misc', available, price } = req.body;
+
+        if (!name) {
+            return res.status(400).json({ message: "Item name is required." });
+        }
+
+        const lowerCategory = category.toLowerCase();
+        const range = categoryRanges[lowerCategory] || categoryRanges.misc;
+
+        if (!range) {
+            return res.status(400).json({ message: `Invalid category provided: ${category}` });
+        }
+
+        const lastItem = await Menu.findOne({
+            itemId: { $gte: String(range.start), $lte: String(range.end) }
+        }).sort({ itemId: -1 });
+
+        let newId = range.start;
+        if (lastItem && lastItem.itemId) {
+            const lastIdNum = parseInt(lastItem.itemId, 10);
+            if (!isNaN(lastIdNum)) {
+                newId = lastIdNum + 1;
+            }
+        }
+
+        if (newId > range.end) {
+            return res.status(409).json({ message: `No more IDs available in the '${category}' category.` });
+        }
+
         const newItem = new Menu({
-            itemId: req.body.itemId,
-            name: req.body.name ?? 'default item', 
-            available: req.body.available ?? true,
-            category: req.body.category ?? 'Uncategorized',
+            itemId: String(newId),
+            name: name,
+            category: category,
+            available: available ?? true,
             priceHistory: [{
-                price: req.body.price ?? 0.00, 
+                price: price ?? 0.00,
                 timestamp: new Date()
             }]
-        })
+        });
 
-        //check if item already exists
-        const item = await Menu.findOne({itemId: req.body.itemId})
-        if(item){
-            return res.status(409).json({message: 'itemId already exists'})
-        }
         const savedItem = await newItem.save();
-        res.status(201).json(savedItem)
-    } catch(error){
-        console.log("error adding menu item", error)
-        res.status(500).json({message: "error adding menu item"})
-    } 
+        // Return the correct object structure
+        res.status(201).json({ message: "item added successfully", savedItem });
+    } catch (error) {
+        console.error("error adding menu item", error);
+        res.status(500).json({ message: "error adding menu item" });
+    }
 };
 
 exports.deleteItemByItemId = async (req, res) => {
