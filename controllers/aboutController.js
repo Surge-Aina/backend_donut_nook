@@ -1,48 +1,61 @@
 const About = require('../models/About');
 
-// Get about content
-exports.getAbout = async (req, res) => {
+// Get all sections
+exports.getAllAbout = async (req, res) => {
   try {
-    const about = await About.findOne().sort({ updatedAt: -1 });
-    if (!about) return res.status(404).json({ message: 'About content not found' });
-    res.json(about);
+    const aboutSections = await About.find().sort({ updatedAt: -1 });
+    res.json(aboutSections);
   } catch (err) {
     res.status(500).json({ error: 'Failed to retrieve about content' });
   }
 };
 
-// Update about content (for admin)
-exports.updateAbout = async (req, res) => {
-  const { content } = req.body;
-
-  try {
-    const about = await About.findOneAndUpdate(
-      {},
-      {
-        content,
-        updatedBy: req.user.id,
-        updatedAt: new Date()
-      },
-      { new: true, upsert: true }
-    );
-    res.json(about);
-  } catch (err) {
-    console.error('Update About error:', err);  // Add this line
-    res.status(500).json({ error: 'Failed to update about content', details: err.message });
-  }
-};
-
-
-// POST /about
+// Create a new section
 exports.createAbout = async (req, res) => {
   try {
+    const { title, content } = req.body;
     const newAbout = await About.create({
-      content: req.body.content,
+      title,
+      content,
       updatedBy: req.user.id,
       updatedAt: new Date()
     });
     res.status(201).json(newAbout);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to create new About document.' });
+    res.status(500).json({ error: 'Failed to create new About section.' });
+  }
+};
+
+// Update a section
+exports.updateAbout = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, content } = req.body;
+    const updated = await About.findByIdAndUpdate(
+      id,
+      {
+        title,
+        content,
+        updatedBy: req.user.id,
+        updatedAt: new Date()
+      },
+      { new: true }
+    );
+    if (!updated) return res.status(404).json({ error: 'Section not found' });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update about section' });
+  }
+};
+
+// Delete a section
+exports.deleteAbout = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deleted = await About.findByIdAndDelete(id);
+    if (!deleted) return res.status(404).json({ error: 'Section not found' });
+    res.json({ message: 'Section deleted' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete about section' });
   }
 };

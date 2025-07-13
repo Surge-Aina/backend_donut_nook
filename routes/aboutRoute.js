@@ -1,17 +1,18 @@
 const express = require('express');
 const router = express.Router();
 const aboutController = require('../controllers/aboutController');
-// used to verify rba, commented out for testing
 const { verifyToken, requireAdmin } = require('../middleware/auth');
 
+// GET all sections
+router.get('/', aboutController.getAllAbout);
 
-
-
-router.get('/', aboutController.getAbout);
-
-// Only admin can update
-router.put('/', verifyToken, requireAdmin, aboutController.updateAbout);
+// CREATE a section (Admin only)
 router.post('/', verifyToken, requireAdmin, aboutController.createAbout);
 
+// UPDATE a section by ID (Admin only)
+router.put('/:id', verifyToken, requireAdmin, aboutController.updateAbout);
+
+// DELETE a section by ID (Admin only)
+router.delete('/:id', verifyToken, requireAdmin, aboutController.deleteAbout);
 
 module.exports = router;
