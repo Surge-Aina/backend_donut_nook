@@ -10,7 +10,7 @@ const categoryRanges = {
 }
 exports.getAllItems = async (req, res) => {
     try{
-        const allItems = await Menu.find();
+        const allItems = await Menu.find().sort({createdAt: -1});
         
         // Get active specials (current date is between startDate and endDate)
         const now = new Date();
@@ -79,6 +79,32 @@ exports.getItemByItemId = async (req, res) =>{
     }
 };
 
+//helper function for addMenuItem function
+//returns the smallest free id in the range ex: used ids = 400, 401, 402, 405, 407, this would return 403 
+//takes in range: {start: Number, end: Number}
+//returns String of 3 digit itemId ex: 101, 202, 400, etc
+async function getNextItemId(range) {
+  if (!range) throw new Error(`range missing`);
+
+  const items = await Menu.find({itemId: { $gte: String(range.start), $lte: String(range.end)}}).select('itemId').lean();
+  const usedIds = items.map(item => parseInt(item.itemId)).sort((a, b) => a - b);
+
+  let candidate = range.start;
+  for (const id of usedIds) {
+    if (id === candidate) {
+      candidate++;
+    } else if (id > candidate) {
+      break;
+    }
+  }
+
+  if (candidate > range.end) {
+    throw new Error(`No IDs available in range: ${range.start}-${range.end}`);
+  }
+
+  return String(candidate).padStart(3, '0');  // keep as '100', '101', etc.
+}
+
 exports.addMenuItem = async (req, res) => {
     try {
         const { name, category = 'misc', available, price } = req.body;
@@ -94,21 +120,8 @@ exports.addMenuItem = async (req, res) => {
             return res.status(400).json({ message: `Invalid category provided: ${category}` });
         }
 
-        const lastItem = await Menu.findOne({
-            itemId: { $gte: String(range.start), $lte: String(range.end) }
-        }).sort({ itemId: -1 });
-
-        let newId = range.start;
-        if (lastItem && lastItem.itemId) {
-            const lastIdNum = parseInt(lastItem.itemId, 10);
-            if (!isNaN(lastIdNum)) {
-                newId = lastIdNum + 1;
-            }
-        }
-
-        if (newId > range.end) {
-            return res.status(409).json({ message: `No more IDs available in the '${category}' category.` });
-        }
+        //call helper function to get next smallest available itemId
+        const newId = await getNextItemId(range)
 
         const newItem = new Menu({
             itemId: String(newId),
@@ -125,6 +138,10 @@ exports.addMenuItem = async (req, res) => {
         // Return the correct object structure
         res.status(201).json({ message: "item added successfully", savedItem });
     } catch (error) {
+        if (error.message && error.message.startsWith('No IDs available in range')) {
+            return res.status(409).json({ message: "No more IDs available for this category range." });
+        }
+
         console.error("error adding menu item", error);
         res.status(500).json({ message: "error adding menu item" });
     }
