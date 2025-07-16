@@ -391,6 +391,7 @@ module.exports = {
   getStoreTimings,
   updateStoreTimings,
   getStoreStatus,
+  formatTimingsResponse,
   // Export helpers for testing
   _test: {
     convertToMinutes,
