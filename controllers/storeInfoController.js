@@ -7,11 +7,11 @@ const {
   formatTimingsResponse
 } = require('./storeTimingController');
 
-// Helper function to get or create store info
+// Helper: get-or-create StoreInfo (optionally in a session)
 const getOrCreateStoreInfo = async (session = null) => {
   const query = StoreInfo.findOne({});
   if (session) query.session(session);
-  
+
   let storeInfo = await query;
   if (!storeInfo) {
     storeInfo = new StoreInfo({
@@ -21,7 +21,6 @@ const getOrCreateStoreInfo = async (session = null) => {
       isOpen: true,
       holidayBanners: []
     });
-    
     if (session) {
       await storeInfo.save({ session });
     } else {
@@ -31,258 +30,231 @@ const getOrCreateStoreInfo = async (session = null) => {
   return storeInfo;
 };
 
-// Helper function for error response
+// Standard error handler
 const handleError = (res, error, message, status = 500) => {
   console.error(message, error);
-  res.status(status).json({ 
+  res.status(status).json({
     message,
-    error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error' 
+    error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
   });
 };
 
-// Helper function to convert date string to Date object
+// Parse ISO date strings
 const parseDate = (dateStr) => {
   const date = new Date(dateStr);
-  if (isNaN(date.getTime())) {
-    throw new Error('Invalid date format');
-  }
+  if (isNaN(date.getTime())) throw new Error('Invalid date format');
   return date;
 };
 
-// Helper function to check if current time is within a time range
+// Time-range checker
 const isWithinTimeRange = (currentTime, openTime, closeTime) => {
-  const [openHour, openMinute] = openTime.split(':').map(Number);
-  const [closeHour, closeMinute] = closeTime.split(':').map(Number);
-  
-  const currentHour = currentTime.getHours();
-  const currentMinute = currentTime.getMinutes();
-  const currentInMinutes = currentHour * 60 + currentMinute;
-  const openInMinutes = openHour * 60 + openMinute;
-  const closeInMinutes = closeHour * 60 + closeMinute;
-  
-  // Handle overnight hours (e.g., 22:00 to 04:00)
-  if (closeInMinutes < openInMinutes) {
-    // If current time is after opening time (overnight) or before closing time (next day)
-    return currentInMinutes >= openInMinutes || currentInMinutes <= closeInMinutes;
-  }
-  
-  // Normal case (not overnight)
-  return currentInMinutes >= openInMinutes && currentInMinutes <= closeInMinutes;
+  const toMins = t => t.split(':').map(Number).reduce((h,m) => h*60 + m, 0);
+  const now = currentTime.getHours()*60 + currentTime.getMinutes();
+  const open = toMins(openTime);
+  const close = toMins(closeTime);
+  if (close < open) return now >= open || now <= close; // overnight
+  return now >= open && now <= close;
 };
 
-
-//helper function to get store Timings
+// Fetch or default timings
 async function fetchStoreTimings() {
-  const storeInfo = await StoreInfo.findOne({}).populate('timings').lean();
-
-  if (storeInfo && storeInfo.timings && storeInfo.timings.length > 0) {
-    return {
-      success: true,
-      data: formatTimingsResponse(storeInfo.timings)
-    };
-  }
-
-  // Return default timings if none found
-  const defaultTimings = [
-    { day: 'monday', isClosed: true, open: '00:00', close: '00:00', splitHours: [] },
-    { day: 'tuesday', isClosed: true, open: '00:00', close: '00:00', splitHours: [] },
-    { day: 'wednesday', isClosed: true, open: '00:00', close: '00:00', splitHours: [] },
-    { day: 'thursday', isClosed: true, open: '00:00', close: '00:00', splitHours: [] },
-    { day: 'friday', isClosed: true, open: '00:00', close: '00:00', splitHours: [] },
-    { day: 'saturday', isClosed: true, open: '00:00', close: '00:00', splitHours: [] },
-    { day: 'sunday', isClosed: true, open: '00:00', close: '00:00', splitHours: [] }
-  ];
-
-  return {
-    success: true,
-    data: formatTimingsResponse(defaultTimings)
-  };
+  const doc = await StoreInfo.findOne({}).populate('timings').lean();
+  const arr = (doc?.timings && doc.timings.length) 
+    ? formatTimingsResponse(doc.timings) 
+    : formatTimingsResponse([
+        { day:'monday', isClosed:true,  open:'00:00', close:'00:00', splitHours:[] },
+        { day:'tuesday',isClosed:true,  open:'00:00', close:'00:00', splitHours:[] },
+        { day:'wednesday',isClosed:true,open:'00:00', close:'00:00', splitHours:[] },
+        { day:'thursday',isClosed:true, open:'00:00', close:'00:00', splitHours:[] },
+        { day:'friday',isClosed:true,   open:'00:00', close:'00:00', splitHours:[] },
+        { day:'saturday',isClosed:true, open:'00:00', close:'00:00', splitHours:[] },
+        { day:'sunday', isClosed:true,  open:'00:00', close:'00:00', splitHours:[] },
+      ]);
+  return { success: true, data: arr };
 }
 
+// ─── CRUD & Banner Endpoints ────────────────────────────────────
 
-// Get store information
+// GET /store-info
 const getStoreInfo = async (req, res) => {
   const session = await mongoose.startSession();
-  let isTransactionInProgress = false;
-  
+  let inTxn = false;
   try {
-    // Start transaction
     await session.startTransaction();
-    isTransactionInProgress = true;
-    
-    // Get or create store info
+    inTxn = true;
+
     const storeInfo = await getOrCreateStoreInfo(session);
-    const storeInfoObj = storeInfo.toObject ? storeInfo.toObject() : storeInfo;
+    const obj = storeInfo.toObject();
 
-    // Get store timings without starting a new transaction
     const { success, data, message } = await fetchStoreTimings();
-    if (!success) throw new Error(message || 'Failed to fetch timings');
+    if (!success) throw new Error(message);
 
-    storeInfoObj.timings = data;
-    
-    // Add timings to store info
-    storeInfoObj.timings = data || {};
-    
+    obj.timings = data;
     await session.commitTransaction();
-    isTransactionInProgress = false;
-    
-    res.json({
-      success: true,
-      data: storeInfoObj
-    });
-  } catch (error) {
-    if (isTransactionInProgress) {
-      await session.abortTransaction().catch(abortError => {
-        console.error('Error aborting transaction:', abortError);
-      });
-    }
-    console.error('Error in getStoreInfo:', error);
-    handleError(res, error, 'Error fetching store information');
+    res.json({ success: true, data: obj });
+  } catch (err) {
+    if (inTxn) await session.abortTransaction();
+    handleError(res, err, 'Error fetching store information');
   } finally {
-    await session.endSession().catch(sessionError => {
-      console.error('Error ending session:', sessionError);
-    });
+    await session.endSession();
   }
 };
 
-// Update store information
+// PUT /store-info
 const updateStoreInfo = async (req, res) => {
   try {
     const { storeName, address, contact, isOpen } = req.body;
-    const storeInfo = await getOrCreateStoreInfo();
-    
-    if (storeName !== undefined) storeInfo.storeName = storeName;
-    if (address) storeInfo.address = { ...storeInfo.address, ...address };
+    const doc = await getOrCreateStoreInfo();
+    if (storeName !== undefined) doc.storeName = storeName;
+    if (address) doc.address = { ...doc.address, ...address };
     if (contact) {
-      // Only update the provided contact fields
-      if (contact.phone !== undefined) storeInfo.contact.phone = contact.phone;
-      if (contact.email !== undefined) storeInfo.contact.email = contact.email;
+      if (contact.phone     !== undefined) doc.contact.phone     = contact.phone;
+      if (contact.email     !== undefined) doc.contact.email     = contact.email;
       if (contact.socialMedia) {
-        if (contact.socialMedia.facebook !== undefined) storeInfo.contact.socialMedia.facebook = contact.socialMedia.facebook;
-        if (contact.socialMedia.instagram !== undefined) storeInfo.contact.socialMedia.instagram = contact.socialMedia.instagram;
-        if (contact.socialMedia.twitter !== undefined) storeInfo.contact.socialMedia.twitter = contact.socialMedia.twitter;
+        if (contact.socialMedia.facebook  !== undefined) doc.contact.socialMedia.facebook  = contact.socialMedia.facebook;
+        if (contact.socialMedia.instagram !== undefined) doc.contact.socialMedia.instagram = contact.socialMedia.instagram;
+        if (contact.socialMedia.twitter   !== undefined) doc.contact.socialMedia.twitter   = contact.socialMedia.twitter;
       }
     }
-    if (isOpen !== undefined) storeInfo.isOpen = isOpen;
-    
-    await storeInfo.save();
-    res.json(storeInfo);
-  } catch (error) {
-    handleError(res, error, 'Error updating store information');
+    if (isOpen !== undefined) doc.isOpen = isOpen;
+    await doc.save();
+    res.json(doc);
+  } catch (err) {
+    handleError(res, err, 'Error updating store information');
   }
 };
 
-// Update store timings
+// PUT /store-info/timings
 const updateStoreTimings = async (req, res) => {
   try {
-    // Delegate to the store timing controller
     await updateTimings(req, res);
-  } catch (error) {
-    console.error('Error in updateStoreTimings:', error);
-    handleError(res, error, 'Error updating store timings');
+  } catch (err) {
+    handleError(res, err, 'Error updating store timings');
   }
 };
 
-// Add holiday banner
+// POST /store-info/holiday-banners
 const addHolidayBanner = async (req, res) => {
   try {
     const { title, message, imageUrl, startDate, endDate, specialHours } = req.body;
-    
     if (!title || !message || !startDate || !endDate) {
-      return res.status(400).json({ 
-        message: 'Title, message, start date, and end date are required' 
-      });
+      return res.status(400).json({ message: 'Title, message, startDate & endDate are required' });
     }
-
     const banner = {
       title,
       message,
       imageUrl,
       startDate: parseDate(startDate),
-      endDate: parseDate(endDate),
-      isActive: true,
+      endDate:   parseDate(endDate),
+      isActive:  true,
       specialHours: specialHours || []
     };
-
-    const storeInfo = await getOrCreateStoreInfo();
-    storeInfo.holidayBanners.push(banner);
-    
-    await storeInfo.save();
+    const doc = await getOrCreateStoreInfo();
+    doc.holidayBanners.push(banner);
+    await doc.save();
     res.status(201).json(banner);
-  } catch (error) {
-    handleError(res, error, 'Error adding holiday banner');
+  } catch (err) {
+    handleError(res, err, 'Error adding holiday banner');
   }
 };
 
-// Get active holiday banners
+// GET /store-info/holiday-banners/active
 const getActiveHolidayBanners = async (req, res) => {
   try {
     const now = new Date();
-    const storeInfo = await StoreInfo.findOne({
+    const doc = await StoreInfo.findOne({
       'holidayBanners.isActive': true,
       'holidayBanners.startDate': { $lte: now },
-      'holidayBanners.endDate': { $gte: now }
+      'holidayBanners.endDate':   { $gte: now }
     });
-    
-    if (!storeInfo?.holidayBanners?.length) {
-      return res.json([]);
-    }
-    
-    const activeBanners = storeInfo.holidayBanners.filter(banner => 
-      banner.isActive && 
-      banner.startDate <= now && 
-      banner.endDate >= now
+    if (!doc?.holidayBanners?.length) return res.json([]);
+    const active = doc.holidayBanners.filter(b =>
+      b.isActive && b.startDate <= now && b.endDate >= now
     );
-    
-    res.json(activeBanners);
-  } catch (error) {
-    console.error('Error fetching holiday banners:', error);
-    res.status(500).json({ 
-      message: 'Error fetching active holiday banners',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error' 
-    });
+    res.json(active);
+  } catch (err) {
+    handleError(res, err, 'Error fetching active holiday banners');
   }
 };
 
-// Get store status (open/closed)
+// POST /store-info/holiday-banners/seed
+async function seedNationalHolidays(req, res) {
+  try {
+    const session = await mongoose.startSession();
+    await session.startTransaction();
+    const doc = await getOrCreateStoreInfo(session);
+
+    const holidays2025 = [
+      { title: "New Year's Day",            date: "2025-01-01" },
+      { title: "Martin Luther King Jr. Day",date: "2025-01-20" },
+      { title: "Presidents' Day",           date: "2025-02-17" },
+      { title: "Memorial Day",              date: "2025-05-26" },
+      { title: "Independence Day",          date: "2025-07-04" },
+      { title: "Labor Day",                 date: "2025-09-01" },
+      { title: "Columbus Day",              date: "2025-10-13" },
+      { title: "Veterans Day",              date: "2025-11-11" },
+      { title: "Thanksgiving Day",          date: "2025-11-27" },
+      { title: "Christmas Day",             date: "2025-12-25" }
+    ];
+
+    const now = new Date();
+    const seeded = [];
+    for (const h of holidays2025) {
+      if (!doc.holidayBanners.some(b => b.title === h.title)) {
+        doc.holidayBanners.push({
+          title: h.title,
+          message: `Closed on ${h.title}`,
+          imageUrl: "",
+          proposed: true,
+          approved: null,
+          isActive: false,
+          proposedOn:        now.toISOString(),
+          decisionDeadline:  new Date(new Date(h.date).getTime() - 8*24*60*60*1000).toISOString(),
+          startDate:         new Date(new Date(h.date).getTime() - 7*24*60*60*1000).toISOString(),
+          endDate:           h.date,
+          specialHours: []
+        });
+        seeded.push(h.title);
+      }
+    }
+
+    await doc.save({ session });
+    await session.commitTransaction();
+    res.status(201).json({ seeded });
+  } catch (err) {
+    handleError(res, err, 'Error seeding national holidays');
+  }
+}
+
+// GET /store-info/status
 const getStoreStatus = async (req, res) => {
   try {
-    // Delegate to the store timing controller
     await getStatus(req, res);
-  } catch (error) {
-    console.error('Error in getStoreStatus:', error);
-    handleError(res, error, 'Error getting store status');
+  } catch (err) {
+    handleError(res, err, 'Error getting store status');
   }
 };
 
-// Delete store info by ID
+// DELETE /store-info/:id
 const deleteStoreInfo = async (req, res) => {
   try {
     const deleted = await StoreInfo.findByIdAndDelete(req.params.id);
-    if (!deleted) {
-      return res.status(404).json({ message: 'StoreInfo not found' });
-    }
-    res.status(200).json({ message: 'StoreInfo deleted successfully' });
-  } catch (error) {
-    handleError(res, error, 'Error deleting store information');
+    if (!deleted) return res.status(404).json({ message: 'StoreInfo not found' });
+    res.json({ message: 'StoreInfo deleted successfully' });
+  } catch (err) {
+    handleError(res, err, 'Error deleting store information');
   }
 };
 
-// Get store timings
+// GET /store-info/timings
 const getStoreTimings = async (req, res) => {
   try {
     const result = await fetchStoreTimings();
-    return res.json(result);
-  } catch (error) {
-    console.error('Error getting store timings:', error);
-    return res.status(500).json({ 
-      success: false, 
-      message: 'Failed to get store timings',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
+    res.json(result);
+  } catch (err) {
+    handleError(res, err, 'Error getting store timings');
   }
 };
-
 
 module.exports = {
   getStoreInfo,
@@ -290,9 +262,10 @@ module.exports = {
   updateStoreTimings,
   addHolidayBanner,
   getActiveHolidayBanners,
+  seedNationalHolidays,      // ← our seeder
   getStoreStatus,
   deleteStoreInfo,
   getStoreTimings,
   isWithinTimeRange,
-  getOrCreateStoreInfo // Export for testing
+  getOrCreateStoreInfo
 };
