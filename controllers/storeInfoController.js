@@ -3,7 +3,8 @@ const StoreInfo = require('../models/StoreInfo');
 const {
   getStoreTimings: getTimings,
   updateStoreTimings: updateTimings,
-  getStoreStatus: getStatus
+  getStoreStatus: getStatus,
+  formatTimingsResponse
 } = require('./storeTimingController');
 
 // Helper function to get or create store info
@@ -69,6 +70,36 @@ const isWithinTimeRange = (currentTime, openTime, closeTime) => {
   return currentInMinutes >= openInMinutes && currentInMinutes <= closeInMinutes;
 };
 
+
+//helper function to get store Timings
+async function fetchStoreTimings() {
+  const storeInfo = await StoreInfo.findOne({}).populate('timings').lean();
+
+  if (storeInfo && storeInfo.timings && storeInfo.timings.length > 0) {
+    return {
+      success: true,
+      data: formatTimingsResponse(storeInfo.timings)
+    };
+  }
+
+  // Return default timings if none found
+  const defaultTimings = [
+    { day: 'monday', isClosed: true, open: '00:00', close: '00:00', splitHours: [] },
+    { day: 'tuesday', isClosed: true, open: '00:00', close: '00:00', splitHours: [] },
+    { day: 'wednesday', isClosed: true, open: '00:00', close: '00:00', splitHours: [] },
+    { day: 'thursday', isClosed: true, open: '00:00', close: '00:00', splitHours: [] },
+    { day: 'friday', isClosed: true, open: '00:00', close: '00:00', splitHours: [] },
+    { day: 'saturday', isClosed: true, open: '00:00', close: '00:00', splitHours: [] },
+    { day: 'sunday', isClosed: true, open: '00:00', close: '00:00', splitHours: [] }
+  ];
+
+  return {
+    success: true,
+    data: formatTimingsResponse(defaultTimings)
+  };
+}
+
+
 // Get store information
 const getStoreInfo = async (req, res) => {
   const session = await mongoose.startSession();
@@ -81,18 +112,16 @@ const getStoreInfo = async (req, res) => {
     
     // Get or create store info
     const storeInfo = await getOrCreateStoreInfo(session);
-    
+    const storeInfoObj = storeInfo.toObject ? storeInfo.toObject() : storeInfo;
+
     // Get store timings without starting a new transaction
-    const timingsResponse = await getTimings(req, { ...res, locals: { session } }, true);
-    
-    // If there was an error getting timings, throw it
-    if (timingsResponse?.error) {
-      throw new Error(timingsResponse.error);
-    }
+    const { success, data, message } = await fetchStoreTimings();
+    if (!success) throw new Error(message || 'Failed to fetch timings');
+
+    storeInfoObj.timings = data;
     
     // Add timings to store info
-    const storeInfoObj = storeInfo.toObject ? storeInfo.toObject() : storeInfo;
-    storeInfoObj.timings = timingsResponse?.data || {};
+    storeInfoObj.timings = data || {};
     
     await session.commitTransaction();
     isTransactionInProgress = false;
@@ -242,13 +271,18 @@ const deleteStoreInfo = async (req, res) => {
 // Get store timings
 const getStoreTimings = async (req, res) => {
   try {
-    // Delegate to the store timing controller
-    await getTimings(req, res);
+    const result = await fetchStoreTimings();
+    return res.json(result);
   } catch (error) {
-    console.error('Error in getStoreTimings:', error);
-    handleError(res, error, 'Error fetching store timings');
+    console.error('Error getting store timings:', error);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Failed to get store timings',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };
+
 
 module.exports = {
   getStoreInfo,
