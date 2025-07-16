@@ -72,14 +72,18 @@ const isWithinTimeRange = (currentTime, openTime, closeTime) => {
 // Get store information
 const getStoreInfo = async (req, res) => {
   const session = await mongoose.startSession();
-  session.startTransaction();
+  let isTransactionInProgress = false;
   
   try {
+    // Start transaction
+    await session.startTransaction();
+    isTransactionInProgress = true;
+    
     // Get or create store info
     const storeInfo = await getOrCreateStoreInfo(session);
     
-    // Get store timings using the store timing controller
-    const timingsResponse = await getTimings({}, res, true);
+    // Get store timings without starting a new transaction
+    const timingsResponse = await getTimings(req, { ...res, locals: { session } }, true);
     
     // If there was an error getting timings, throw it
     if (timingsResponse?.error) {
@@ -91,17 +95,24 @@ const getStoreInfo = async (req, res) => {
     storeInfoObj.timings = timingsResponse?.data || {};
     
     await session.commitTransaction();
+    isTransactionInProgress = false;
     
     res.json({
       success: true,
       data: storeInfoObj
     });
   } catch (error) {
-    await session.abortTransaction();
+    if (isTransactionInProgress) {
+      await session.abortTransaction().catch(abortError => {
+        console.error('Error aborting transaction:', abortError);
+      });
+    }
     console.error('Error in getStoreInfo:', error);
     handleError(res, error, 'Error fetching store information');
   } finally {
-    await session.endSession();
+    await session.endSession().catch(sessionError => {
+      console.error('Error ending session:', sessionError);
+    });
   }
 };
 

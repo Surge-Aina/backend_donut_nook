@@ -55,6 +55,7 @@ const StoreTimingSchema = new mongoose.Schema({
       },
       message: 'At least one time slot is required when the store is open'
     }
+
   }
 }, { 
   timestamps: true,
