@@ -23,7 +23,8 @@ const StoreTimingSchema = new mongoose.Schema({
     enum: {
       values: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'],
       message: '{VALUE} is not a valid day'
-    }
+    },
+    unique: true
   },
   isClosed: {
     type: Boolean,
@@ -54,11 +55,18 @@ const StoreTimingSchema = new mongoose.Schema({
       },
       message: 'At least one time slot is required when the store is open'
     }
+
   }
 }, { 
   timestamps: true,
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
 });
+<<<<<<< HEAD
+=======
+
+// Add index for faster lookups
+StoreTimingSchema.index({ day: 1 }, { unique: true });
+>>>>>>> origin/main
 
 module.exports = mongoose.model('StoreTiming', StoreTimingSchema);

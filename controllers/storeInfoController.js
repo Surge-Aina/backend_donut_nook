@@ -76,9 +76,10 @@ const getStoreInfo = async (req, res) => {
   
   try {
     // Start transaction
-    session.startTransaction();
+    await session.startTransaction();
     isTransactionInProgress = true;
     
+    // Get or create store info
     const storeInfo = await getOrCreateStoreInfo(session);
     
     // Get store timings without starting a new transaction
@@ -94,13 +95,17 @@ const getStoreInfo = async (req, res) => {
     storeInfoObj.timings = timingsResponse?.data || {};
     
     await session.commitTransaction();
+<<<<<<< HEAD
     isTransactionInProgress = false;
+=======
+>>>>>>> origin/main
     
     res.json({
       success: true,
       data: storeInfoObj
     });
   } catch (error) {
+<<<<<<< HEAD
     if (isTransactionInProgress) {
       await session.abortTransaction().catch(abortError => {
         console.error('Error aborting transaction:', abortError);
@@ -112,6 +117,13 @@ const getStoreInfo = async (req, res) => {
     await session.endSession().catch(sessionError => {
       console.error('Error ending session:', sessionError);
     });
+=======
+    await session.abortTransaction();
+    console.error('Error in getStoreInfo:', error);
+    handleError(res, error, 'Error fetching store information');
+  } finally {
+    await session.endSession();
+>>>>>>> origin/main
   }
 };
 
