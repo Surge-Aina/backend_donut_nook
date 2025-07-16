@@ -4,21 +4,27 @@ const { deleteStoreInfo } = require('../controllers/storeInfoController');
 const {
   getStoreInfo,
   updateStoreInfo,
-  updateStoreTimings,
   addHolidayBanner,
   getActiveHolidayBanners,
-  getStoreStatus
+  getStoreStatus: getStatus
 } = require('../controllers/storeInfoController');
+
+// Import store timing controller
+const {
+  getStoreTimings: getTimings,
+  updateStoreTimings: updateTimings,
+  getStoreStatus
+} = require('../controllers/storeTimingController');
 
 // Public routes
 router.get('/', getStoreInfo);
+router.get('/timings', getTimings);
 router.get('/holiday-banners/active', getActiveHolidayBanners);
 router.get('/status', getStoreStatus);
 
-
 // Protected routes (add authentication middleware later)
 router.put('/', updateStoreInfo);
-router.put('/timings', updateStoreTimings);
+router.put('/timings', updateTimings);
 router.post('/holiday-banners', addHolidayBanner);
 router.delete('/:id', deleteStoreInfo);
 

@@ -1,10 +1,17 @@
 const mongoose = require('mongoose');
 const StoreInfo = require('../models/StoreInfo');
-const StoreTiming = require('../models/StoreTiming');
+const {
+  getStoreTimings: getTimings,
+  updateStoreTimings: updateTimings,
+  getStoreStatus: getStatus
+} = require('./storeTimingController');
 
 // Helper function to get or create store info
-const getOrCreateStoreInfo = async () => {
-  let storeInfo = await StoreInfo.findOne({});
+const getOrCreateStoreInfo = async (session = null) => {
+  const query = StoreInfo.findOne({});
+  if (session) query.session(session);
+  
+  let storeInfo = await query;
   if (!storeInfo) {
     storeInfo = new StoreInfo({
       storeName: 'The Donut Nook',
@@ -13,6 +20,12 @@ const getOrCreateStoreInfo = async () => {
       isOpen: true,
       holidayBanners: []
     });
+    
+    if (session) {
+      await storeInfo.save({ session });
+    } else {
+      await storeInfo.save();
+    }
   }
   return storeInfo;
 };
@@ -58,36 +71,37 @@ const isWithinTimeRange = (currentTime, openTime, closeTime) => {
 
 // Get store information
 const getStoreInfo = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  
   try {
-    // Try to get existing store info
-    let storeInfo = await StoreInfo.findOne({}).lean();
+    // Get or create store info
+    const storeInfo = await getOrCreateStoreInfo(session);
     
-    // If no store info exists, create a default one
-    if (!storeInfo) {
-      storeInfo = new StoreInfo({
-        storeName: 'The Donut Nook',
-        address: {},
-        contact: {},
-        isOpen: true,
-        holidayBanners: []
-      });
-      await storeInfo.save();
-      storeInfo = storeInfo.toObject();
+    // Get store timings using the store timing controller
+    const timingsResponse = await getTimings({}, res, true);
+    
+    // If there was an error getting timings, throw it
+    if (timingsResponse?.error) {
+      throw new Error(timingsResponse.error);
     }
     
-    // Get all store timings
-    const allTimings = await StoreTiming.find({}).lean();
+    // Add timings to store info
+    const storeInfoObj = storeInfo.toObject ? storeInfo.toObject() : storeInfo;
+    storeInfoObj.timings = timingsResponse?.data || {};
     
-    // Transform timings to object keyed by day
-    storeInfo.timings = allTimings.reduce((acc, timing) => {
-      acc[timing.day] = timing;
-      return acc;
-    }, {});
+    await session.commitTransaction();
     
-    res.json(storeInfo);
+    res.json({
+      success: true,
+      data: storeInfoObj
+    });
   } catch (error) {
+    await session.abortTransaction();
     console.error('Error in getStoreInfo:', error);
     handleError(res, error, 'Error fetching store information');
+  } finally {
+    await session.endSession();
   }
 };
 
@@ -120,43 +134,12 @@ const updateStoreInfo = async (req, res) => {
 
 // Update store timings
 const updateStoreTimings = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-  
   try {
-    const { timings } = req.body;
-    
-    if (!Array.isArray(timings)) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(400).json({ message: 'Timings must be an array' });
-    }
-    
-    // Delete all existing timings
-    await StoreTiming.deleteMany({}).session(session);
-    
-    // Insert new timings
-    const newTimings = await StoreTiming.insertMany(timings, { session });
-    
-    // Update StoreInfo to reference the new timings
-    await StoreInfo.findOneAndUpdate(
-      {},
-      { $set: { timings: newTimings.map(t => t._id) } },
-      { upsert: true, session }
-    );
-    
-    await session.commitTransaction();
-    session.endSession();
-    
-    res.json(newTimings);
+    // Delegate to the store timing controller
+    await updateTimings(req, res);
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    console.error('Error updating store timings:', error);
-    res.status(500).json({ 
-      message: 'Error updating store timings',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error' 
-    });
+    console.error('Error in updateStoreTimings:', error);
+    handleError(res, error, 'Error updating store timings');
   }
 };
 
@@ -224,57 +207,14 @@ const getActiveHolidayBanners = async (req, res) => {
 // Get store status (open/closed)
 const getStoreStatus = async (req, res) => {
   try {
-    const storeInfo = await StoreInfo.findOne({}).populate('timings');
-    if (!storeInfo) {
-      return res.status(404).json({ message: 'Store information not found' });
-    }
-    
-    const now = new Date();
-    const dayName = now.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-    const todaysTiming = storeInfo.timings?.find(t => t.day === dayName);
-    
-    // Check for active holiday banners
-    if (storeInfo.holidayBanners?.length) {
-      const activeBanner = storeInfo.holidayBanners.find(banner => {
-        if (!banner.isActive || !banner.specialHours) return false;
-        const bannerStart = new Date(banner.startDate);
-        const bannerEnd = new Date(banner.endDate);
-        return now >= bannerStart && now <= bannerEnd;
-      });
-      
-      if (activeBanner?.specialHours?.length) {
-        const specialHour = activeBanner.specialHours.find(hour => 
-          new Date(hour.date).toDateString() === now.toDateString()
-        );
-        
-        if (specialHour) {
-          const isOpen = !specialHour.isClosed && isWithinTimeRange(now, specialHour.open, specialHour.close);
-          return res.json({
-            isOpen,
-            message: isOpen ? 'Open with special hours' : `Closed for ${activeBanner.title}`,
-            holidayTitle: activeBanner.title
-          });
-        }
-      }
-    }
-    
-    // Check regular hours
-    if (!todaysTiming || todaysTiming.isClosed) {
-      return res.json({ isOpen: false, message: 'Closed for today' });
-    }
-    
-    // Check if within regular hours
-    const isOpen = isWithinTimeRange(now, todaysTiming.open, todaysTiming.close);
-    return res.json({ isOpen, message: isOpen ? 'Open' : 'Closed' });
-    
+    // Delegate to the store timing controller
+    await getStatus(req, res);
   } catch (error) {
-    console.error('Error getting store status:', error);
-    res.status(500).json({ 
-      message: 'Error getting store status',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error' 
-    });
+    console.error('Error in getStoreStatus:', error);
+    handleError(res, error, 'Error getting store status');
   }
 };
+
 // Delete store info by ID
 const deleteStoreInfo = async (req, res) => {
   try {
@@ -288,6 +228,17 @@ const deleteStoreInfo = async (req, res) => {
   }
 };
 
+// Get store timings
+const getStoreTimings = async (req, res) => {
+  try {
+    // Delegate to the store timing controller
+    await getTimings(req, res);
+  } catch (error) {
+    console.error('Error in getStoreTimings:', error);
+    handleError(res, error, 'Error fetching store timings');
+  }
+};
+
 module.exports = {
   getStoreInfo,
   updateStoreInfo,
@@ -295,7 +246,8 @@ module.exports = {
   addHolidayBanner,
   getActiveHolidayBanners,
   getStoreStatus,
+  deleteStoreInfo,
+  getStoreTimings,
   isWithinTimeRange,
-  deleteStoreInfo  // Export the helper function for testing
+  getOrCreateStoreInfo // Export for testing
 };
-
