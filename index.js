@@ -21,7 +21,30 @@ connectDB().catch(err => {
   // Don't throw error - let server start anyway
 });
 
-app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
+// Configure CORS to allow multiple origins
+const allowedOrigins = [
+  'http://localhost:3000', // Local development
+  'https://frontend-donut-nook.vercel.app', // Production frontend
+  // Add other environments as needed
+];
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = `The CORS policy for this site does not allow access from the specified origin: ${origin}`;
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 app.use('/test', testRoute);
