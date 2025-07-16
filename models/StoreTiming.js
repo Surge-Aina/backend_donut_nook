@@ -62,11 +62,8 @@ const StoreTimingSchema = new mongoose.Schema({
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
 });
-<<<<<<< HEAD
-=======
 
 // Add index for faster lookups
 StoreTimingSchema.index({ day: 1 }, { unique: true });
->>>>>>> origin/main
 
 module.exports = mongoose.model('StoreTiming', StoreTimingSchema);
