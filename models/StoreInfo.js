@@ -71,19 +71,29 @@ const StoreInfoSchema = new mongoose.Schema({
     ref: 'StoreTiming'
   }],
   holidayBanners: [{
-    title: { type: String, required: true },
-    message: { type: String, required: true },
-    imageUrl: { type: String },
-    isActive: { type: Boolean, default: true },
-    startDate: { type: Date, required: true },
-    endDate: { type: Date, required: true },
-    specialHours: [{
-      date: { type: Date, required: true },
-      open: String,
-      close: String,
-      isClosed: { type: Boolean, default: false }
-    }]
-  }],
+  title:            { type: String,  required: true },
+  message:          { type: String,  required: true },
+  imageUrl:         { type: String },
+  
+  // ── CONTROL FLAGS ──
+  proposed:         { type: Boolean, default: true },   // auto-generated
+  approved:         { type: Boolean, default: null },   // null=pending, true/false=manager’s decision
+  isActive:         { type: Boolean, default: false },  // only true if approved AND within 7-day public window
+
+  // ── DATES ──
+  proposedOn:       { type: Date,    default: Date.now },
+  decisionDeadline: { type: Date },                     // holidayDate − 7 days
+  startDate:        { type: Date,    required: true },  // holidayDate − 7 days
+  endDate:          { type: Date,    required: true },  // holidayDate
+
+  // ── OPTIONAL SPECIAL HOURS ──
+  specialHours: [{
+    date:     { type: Date,  required: true },
+    open:      String,
+    close:     String,
+    isClosed: { type: Boolean, default: false }
+  }]
+}],
   isOpen: {
     type: Boolean,
     default: true
