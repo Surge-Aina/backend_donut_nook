@@ -11,6 +11,7 @@ const aboutRoutes = require('./routes/aboutRoute');
 const menuRoutes = require('./routes/menu');
 const storeInfoRoutes = require('./routes/storeInfoRoutes');
 const customerRoutes = require('./routes/customers');
+const toastLogRoutes = require('./routes/toastRoute');
 
 
 const app = express();
@@ -33,6 +34,7 @@ app.use('/about', aboutRoutes);
 app.use('/menu', menuRoutes);
 app.use('/customers', customerRoutes);
 app.use('/store-info', storeInfoRoutes);
+app.use('/api/toastLogs', toastLogRoutes);
 
 app.get('/', (req, res) => {
   res.status(200).json({
@@ -58,4 +60,3 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 });
 
 module.exports = { app, server }; // ✅ Export both for testing
-
