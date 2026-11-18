@@ -105,9 +105,40 @@ async function getNextItemId(range) {
   return String(candidate).padStart(3, '0');  // keep as '100', '101', etc.
 }
 
+
+function optionalStringField(value, fieldName, maxLength, { url = false } = {}) {
+    if (value === undefined || value === null) return value;
+    if (typeof value !== 'string') {
+        const error = new Error(`${fieldName} must be a string.`);
+        error.statusCode = 400;
+        throw error;
+    }
+    if (value.length > maxLength) {
+        const error = new Error(`${fieldName} must be at most ${maxLength} characters.`);
+        error.statusCode = 400;
+        throw error;
+    }
+    if (url && value.trim()) {
+        try {
+            const parsed = new URL(value.trim());
+            if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+                throw new Error('bad protocol');
+            }
+        } catch {
+            const error = new Error(`${fieldName} must be an http or https URL.`);
+            error.statusCode = 400;
+            throw error;
+        }
+    }
+    return value;
+}
+
 exports.addMenuItem = async (req, res) => {
     try {
         const { name, category = 'misc', available, price } = req.body;
+        const description = optionalStringField(req.body.description, 'description', 1000);
+        const imageUrl = optionalStringField(req.body.imageUrl, 'imageUrl', 2048, { url: true });
+        const specialNote = optionalStringField(req.body.specialNote, 'specialNote', 500);
 
         if (!name) {
             return res.status(400).json({ message: "Item name is required." });
@@ -127,6 +158,9 @@ exports.addMenuItem = async (req, res) => {
             itemId: String(newId),
             name: name,
             category: category,
+            description: description,
+            imageUrl: imageUrl,
+            specialNote: specialNote,
             available: available ?? true,
             priceHistory: [{
                 price: price ?? 0.00,
@@ -138,6 +172,9 @@ exports.addMenuItem = async (req, res) => {
         // Return the correct object structure
         res.status(201).json({ message: "item added successfully", savedItem });
     } catch (error) {
+        if (error.statusCode === 400) {
+            return res.status(400).json({ message: error.message });
+        }
         if (error.message && error.message.startsWith('No IDs available in range')) {
             return res.status(409).json({ message: "No more IDs available for this category range." });
         }
@@ -183,6 +220,9 @@ exports.editItemByItemId = async (req, res) => {
         const newCategory = req.body.category ?? item.category;
         const newName = req.body.name ?? item.name
         const newItemId = req.body.itemId ?? item.itemId
+        const newDescription = optionalStringField(req.body.description, 'description', 1000) ?? item.description
+        const newImageUrl = optionalStringField(req.body.imageUrl, 'imageUrl', 2048, { url: true }) ?? item.imageUrl
+        const newSpecialNote = optionalStringField(req.body.specialNote, 'specialNote', 500) ?? item.specialNote
 
         const editedItem = await Menu.findByIdAndUpdate(
             item._id,   
@@ -191,6 +231,9 @@ exports.editItemByItemId = async (req, res) => {
                 name: newName,
                 available: newAvailable, 
                 category: newCategory,
+                description: newDescription,
+                imageUrl: newImageUrl,
+                specialNote: newSpecialNote,
                 priceHistory: newPriceHistory,
 
             },{new : true} // return updated document
@@ -198,6 +241,9 @@ exports.editItemByItemId = async (req, res) => {
 
         res.status(200).json(editedItem);
     } catch(error){
+        if (error.statusCode === 400) {
+            return res.status(400).json({ message: error.message });
+        }
         console.log("error editing by ID", error);
         res.status(500).json({message: "error editing item by ID"});
     } 
